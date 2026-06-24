@@ -67,6 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   await loadFromSupabase();
   renderAll();
+  startRealtimeSync();
 });
 
 function $(id) {
@@ -113,8 +114,13 @@ function bindEvents() {
     renderPregnancy();
 
     const { error } = await saveProfileToSupabase(state.profile);
-    if (error) showToast("Saved locally. Supabase did not save yet. Check SQL/RLS.");
-    else showToast("Due date saved.");
+    if (error) {
+      showToast(`Saved locally only. Supabase error: ${error.message || "unknown error"}`);
+    } else {
+      await loadFromSupabase();
+      renderAll();
+      showToast("Due date saved to shared dashboard.");
+    }
   });
 
   $("checklistForm")?.addEventListener("submit", async (event) => {
@@ -519,6 +525,34 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function startRealtimeSync() {
+  if (!supabaseClient) return;
+
+  supabaseClient
+    .channel("tiny-tenant-shared-sync")
+    .on("postgres_changes", { event: "*", schema: "public", table: "pregnancy_profile" }, async () => {
+      await loadFromSupabase();
+      renderAll();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "pregnancy_nursery_checklist" }, async () => {
+      await loadFromSupabase();
+      renderAll();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "pregnancy_budget_expenses" }, async () => {
+      await loadFromSupabase();
+      renderAll();
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "pregnancy_budget_settings" }, async () => {
+      await loadFromSupabase();
+      renderAll();
+    })
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.info("Tiny Tenant realtime sync active.");
+      }
+    });
 }
 
 if ("serviceWorker" in navigator) {
