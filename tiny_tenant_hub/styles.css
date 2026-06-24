@@ -12,7 +12,8 @@
   --radius: 28px;
 }
 
-[data-theme="dark"] {
+[data-theme="dark"],
+body.dark {
   --bg: #111820;
   --surface: rgba(27, 38, 49, 0.84);
   --surface-solid: #1b2631;
