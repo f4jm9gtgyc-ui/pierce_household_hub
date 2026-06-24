@@ -7,6 +7,9 @@ const supabaseClient = window.supabase
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
+const PROFILE_ID = "00000000-0000-4000-8000-000000000001";
+const BUDGET_ID = "00000000-0000-4000-8000-000000000002";
+
 const STORAGE_KEYS = {
   profile: "tinyTenant.profile",
   checklist: "tinyTenant.checklist",
@@ -67,7 +70,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   await loadFromSupabase();
   renderAll();
-  startRealtimeSync();
 });
 
 function $(id) {
@@ -104,7 +106,7 @@ function bindEvents() {
 
     const computed = calculatePregnancy(dueDate);
     state.profile = {
-      id: "main",
+      id: PROFILE_ID,
       due_date: dueDate,
       current_week: computed.week,
       trimester: computed.trimester
@@ -114,13 +116,8 @@ function bindEvents() {
     renderPregnancy();
 
     const { error } = await saveProfileToSupabase(state.profile);
-    if (error) {
-      showToast(`Saved locally only. Supabase error: ${error.message || "unknown error"}`);
-    } else {
-      await loadFromSupabase();
-      renderAll();
-      showToast("Due date saved to shared dashboard.");
-    }
+    if (error) showToast("Saved locally. Supabase did not save yet. Check SQL/RLS.");
+    else showToast("Due date saved.");
   });
 
   $("checklistForm")?.addEventListener("submit", async (event) => {
@@ -147,7 +144,7 @@ function bindEvents() {
   $("budgetSettingsForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const monthlyBudget = Number($("monthlyBudget").value || 0);
-    state.budget = { id: "main", monthly_budget: monthlyBudget };
+    state.budget = { id: BUDGET_ID, monthly_budget: monthlyBudget };
     writeLocal(STORAGE_KEYS.budget, state.budget);
     renderBudget();
     await saveBudgetToSupabase(state.budget);
@@ -190,10 +187,10 @@ async function loadFromSupabase() {
 
   try {
     const [profileRes, checklistRes, expensesRes, budgetRes] = await Promise.all([
-      supabaseClient.from("pregnancy_profile").select("*").eq("id", "main").maybeSingle(),
+      supabaseClient.from("pregnancy_profile").select("*").eq("id", PROFILE_ID).maybeSingle(),
       supabaseClient.from("pregnancy_nursery_checklist").select("*").order("created_at", { ascending: true }),
       supabaseClient.from("pregnancy_budget_expenses").select("*").order("expense_date", { ascending: false }),
-      supabaseClient.from("pregnancy_budget_settings").select("*").eq("id", "main").maybeSingle()
+      supabaseClient.from("pregnancy_budget_settings").select("*").eq("id", BUDGET_ID).maybeSingle()
     ]);
 
     if (profileRes.data) {
@@ -253,7 +250,7 @@ async function updateChecklistItemInSupabase(item) {
 async function saveBudgetToSupabase(budget) {
   if (!supabaseClient) return;
   const { error } = await supabaseClient.from("pregnancy_budget_settings").upsert({
-    id: "main",
+    id: BUDGET_ID,
     monthly_budget: budget.monthly_budget || 0
   }, { onConflict: "id" });
   if (error) console.error("Budget save failed:", error);
@@ -525,34 +522,6 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2600);
-}
-
-function startRealtimeSync() {
-  if (!supabaseClient) return;
-
-  supabaseClient
-    .channel("tiny-tenant-shared-sync")
-    .on("postgres_changes", { event: "*", schema: "public", table: "pregnancy_profile" }, async () => {
-      await loadFromSupabase();
-      renderAll();
-    })
-    .on("postgres_changes", { event: "*", schema: "public", table: "pregnancy_nursery_checklist" }, async () => {
-      await loadFromSupabase();
-      renderAll();
-    })
-    .on("postgres_changes", { event: "*", schema: "public", table: "pregnancy_budget_expenses" }, async () => {
-      await loadFromSupabase();
-      renderAll();
-    })
-    .on("postgres_changes", { event: "*", schema: "public", table: "pregnancy_budget_settings" }, async () => {
-      await loadFromSupabase();
-      renderAll();
-    })
-    .subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        console.info("Tiny Tenant realtime sync active.");
-      }
-    });
 }
 
 if ("serviceWorker" in navigator) {
