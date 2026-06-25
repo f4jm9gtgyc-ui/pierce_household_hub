@@ -761,8 +761,8 @@
           <div class="form-card">
             <h3>Upload FPL Bill</h3>
             <p class="sub">Stores the PDF in Supabase Storage and logs the upload. Parsing comes next, because one monster at a time.</p>
-            <input id="fplFileInput" type="file" accept="application/pdf" />
-            <button id="uploadFplBtn" class="primary-btn" type="button">Upload FPL Bill</button>
+            <input id="fplFileInput" type="file" accept="application/pdf,.pdf" />
+            <button id="uploadFplBtn" class="primary-btn" type="button">Choose & Upload FPL Bill</button>
             <div id="uploadStatus" class="status-note">No bill selected.</div>
           </div>
 
@@ -850,51 +850,68 @@
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     }
 
+    function openFplBillPicker() {
+      const input = document.getElementById("fplFileInput");
+      const status = document.getElementById("uploadStatus");
+      status.textContent = "Choose a PDF bill to upload.";
+      input.click();
+    }
+
     async function uploadFplBill() {
       const input = document.getElementById("fplFileInput");
       const status = document.getElementById("uploadStatus");
 
-      if (!input.files.length) {
-        input.click();
+      if (!input.files || !input.files.length) {
+        status.textContent = "No PDF selected yet.";
         return;
       }
 
       if (SUPABASE_URL.includes("PASTE_YOUR") || SUPABASE_ANON_KEY.includes("PASTE_YOUR")) {
         status.textContent = "Supabase URL/key are still placeholders. Add your real values before uploading a bill.";
+        input.value = "";
         return;
       }
 
       const file = input.files[0];
-      if (file.type !== "application/pdf") {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
         status.textContent = "Please select a PDF file.";
+        input.value = "";
         return;
       }
 
-      status.textContent = "Uploading PDF...";
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `${new Date().toISOString().slice(0, 10)}-${Date.now()}-${safeName}`;
+      try {
+        status.textContent = `Uploading ${file.name}...`;
 
-      const { error: uploadError } = await client.storage.from("fpl-bills").upload(path, file, {
-        cacheControl: "3600",
-        upsert: false
-      });
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const monthFolder = new Date().toISOString().slice(0, 7);
+        const path = `${monthFolder}/${Date.now()}-${safeName}`;
 
-      if (uploadError) {
-        status.textContent = `Upload failed: ${uploadError.message}`;
-        return;
+        const { error: uploadError } = await client.storage.from("fpl-bills").upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: "application/pdf"
+        });
+
+        if (uploadError) throw uploadError;
+
+        const { error: logError } = await client
+          .from("fpl_bill_uploads")
+          .insert({ file_name: file.name, file_path: path, billing_month: null, status: "uploaded" });
+
+        if (logError) {
+          status.textContent = "PDF uploaded, but upload log was not saved. Check fpl_bill_uploads insert policy.";
+          input.value = "";
+          return;
+        }
+
+        status.textContent = `Uploaded: ${file.name}`;
+        input.value = "";
+      } catch (error) {
+        console.error(error);
+        status.textContent = `Upload failed: ${error.message || "Unknown error"}`;
+        input.value = "";
       }
-
-      const { error: logError } = await client
-        .from("fpl_bill_uploads")
-        .insert({ file_name: file.name, file_path: path, billing_month: null, status: "uploaded" });
-
-      if (logError) {
-        status.textContent = "PDF uploaded, but upload log was not saved. Check fpl_bill_uploads policies.";
-        return;
-      }
-
-      status.textContent = `Uploaded: ${file.name}`;
-      input.value = "";
     }
 
     async function saveDailyEntry() {
@@ -1156,7 +1173,7 @@
     }
 
     document.getElementById("dailyDate").value = todayISO();
-    document.getElementById("uploadFplBtn").addEventListener("click", uploadFplBill);
+    document.getElementById("uploadFplBtn").addEventListener("click", openFplBillPicker);
     document.getElementById("fplFileInput").addEventListener("change", uploadFplBill);
     document.getElementById("saveDailyBtn").addEventListener("click", saveDailyEntry);
     setupNavActiveState();
