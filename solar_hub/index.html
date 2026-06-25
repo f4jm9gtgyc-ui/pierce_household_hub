@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Solar Hub</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
@@ -770,7 +771,7 @@
         <div class="manage-grid">
           <div class="form-card">
             <h3>Upload FPL Bill</h3>
-            <p class="sub">Stores the PDF in Supabase Storage and logs the upload.</p>
+            <p class="sub">Uploads the PDF, extracts FPL bill values, saves them to Supabase, and refreshes the dashboard.</p>
             <input id="fplFileInput" type="file" accept="application/pdf,.pdf" />
             <label id="uploadFplBtn" class="primary-btn" for="fplFileInput" role="button" tabindex="0">Choose & Upload FPL Bill</label>
             <div id="uploadStatus" class="status-note">No bill selected.</div>
@@ -778,7 +779,7 @@
 
           <div class="form-card">
             <h3>FPL Bill Details</h3>
-            <p class="sub">After uploading the PDF, enter the values from the bill so the dashboard can update.</p>
+            <p class="sub">Auto-filled from the uploaded FPL PDF. Values are saved automatically after extraction, but you can adjust and save again if needed.</p>
             <div class="field">
               <label for="billMonthInput">Billing Month</label>
               <input id="billMonthInput" type="text" placeholder="May 2026" />
@@ -851,8 +852,8 @@
               <label for="currentBillInput">Current Bill $</label>
               <input id="currentBillInput" type="number" step="0.01" min="0" placeholder="85.59" />
             </div>
-            <button id="saveFplBillBtn" class="primary-btn" type="button">Save FPL Bill Details</button>
-            <div id="billDetailsStatus" class="status-note">Ready to save bill details.</div>
+            <button id="saveFplBillBtn" class="primary-btn" type="button">Save / Update FPL Bill Details</button>
+            <div id="billDetailsStatus" class="status-note">Upload a bill to auto-fill and save details.</div>
           </div>
 
           <div class="form-card">
@@ -899,6 +900,10 @@
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6aWpvcHNzd3dxbmhtcmpid2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5MDg4MzMsImV4cCI6MjA5NzQ4NDgzM30.xINNWvchRGPr7hlcrSV98u_gsH2HFiQ_wdlXbGQ6MkM";
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
 
     const todayISO = () => new Date().toISOString().slice(0, 10);
     const currentMonthKey = () => new Date().toISOString().slice(0, 7);
@@ -949,9 +954,151 @@
       }
     }
 
+    function toNumber(value) {
+      if (value == null) return 0;
+      const cleaned = String(value).replace(/[$,]/g, "").replace(/[−–—]/g, "-").trim();
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function normalizePdfText(text) {
+      return String(text || "")
+        .replace(/\s+/g, " ")
+        .replace(/[−–—]/g, "-")
+        .trim();
+    }
+
+    function dateTextToISO(dateText) {
+      if (!dateText) return null;
+      const date = new Date(`${dateText} 12:00:00`);
+      if (Number.isNaN(date.getTime())) return null;
+      return date.toISOString().slice(0, 10);
+    }
+
+    function monthFromISO(isoDate) {
+      if (!isoDate) return "";
+      return monthLabel(isoDate);
+    }
+
+    function matchFirst(text, regex, group = 1) {
+      const match = text.match(regex);
+      return match ? match[group] : null;
+    }
+
+    async function extractPdfText(file) {
+      if (!window.pdfjsLib) throw new Error("PDF reader did not load. Refresh the page and try again.");
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      const pages = [];
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+        pages.push(content.items.map(item => item.str).join(" "));
+      }
+
+      return pages.join("\n");
+    }
+
+    function extractFplBillFields(rawText) {
+      const text = normalizePdfText(rawText);
+
+      const period = text.match(/For:\s*([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s+to\s+([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s*\((\d+)\s+days\)/i);
+      const currentBillBlock = text.match(/CURRENT BILL\s*\$?([\d,.]+)\s*TOTAL AMOUNT YOU OWE\s*([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s*NEW CHARGES DUE BY/i);
+      const keepInMind = text.match(/([\d,.]+)\s*kWh were sent to the grid this period\.\s*([\d,.]+)\s*kWh were applied to reduce your bill\.\s*Your kWh reserve increased by\s*([-\d,.]+)\.\s*The kWh in your reserve is\s*([-\d,.]+)/i);
+
+      const billingStart = period ? dateTextToISO(period[1]) : null;
+      const billingEnd = period ? dateTextToISO(period[2]) : null;
+      const dueDateText = currentBillBlock ? currentBillBlock[2] : matchFirst(text, /([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s+NEW CHARGES DUE BY/i);
+      const dueDateISO = dateTextToISO(dueDateText);
+
+      const payload = {
+        month: billingEnd ? monthFromISO(billingEnd) : "",
+        billing_start: billingStart,
+        billing_end: billingEnd,
+        billing_days: period ? Number(period[3]) : 0,
+        home_usage_kwh: toNumber(matchFirst(text, /Res kWh used\s+([\d,.]+)/i)),
+        ev_usage_kwh: toNumber(matchFirst(text, /EV kWh used\s+\d+\s+\d+\s+([\d,.]+)/i)),
+        total_usage_kwh: toNumber(matchFirst(text, /kWh used\s+\d+\s+\d+\s+([\d,.]+)/i)),
+        sent_to_grid_kwh: keepInMind ? toNumber(keepInMind[1]) : 0,
+        applied_to_bill_kwh: keepInMind ? toNumber(keepInMind[2]) : 0,
+        reserve_added_kwh: keepInMind ? toNumber(keepInMind[3]) : 0,
+        reserve_balance_kwh: keepInMind ? toNumber(keepInMind[4]) : 0,
+        base_service_fee: toNumber(matchFirst(text, /Base charge:\s*\$?([\d,.]+)/i)),
+        electric_service_amount: toNumber(matchFirst(text, /Electric service amount\s+\$?([\d,.]+)/i)),
+        evolution_home_charge: toNumber(matchFirst(text, /FPL EVolution Home charge\s+\$?([\d,.]+)/i)),
+        gross_receipts_tax: toNumber(matchFirst(text, /Gross receipts tax[^\d$]*\$?([\d,.]+)/i)),
+        regulatory_fee: toNumber(matchFirst(text, /Regulatory fee[^\d$]*\$?([\d,.]+)/i)),
+        total_new_charges: toNumber(matchFirst(text, /Total new charges\s+\$?([\d,.]+)/i)),
+        total_bill: currentBillBlock ? toNumber(currentBillBlock[1]) : toNumber(matchFirst(text, /Total amount you owe\s+\$?([\d,.]+)/i)),
+        current_bill: currentBillBlock ? toNumber(currentBillBlock[1]) : toNumber(matchFirst(text, /Total amount you owe\s+\$?([\d,.]+)/i)),
+        due_date: dueDateText || null,
+        due_date_iso: dueDateISO
+      };
+
+      if (!payload.month || !payload.billing_end) {
+        throw new Error("Could not find the billing period. Make sure this is an FPL electric bill PDF.");
+      }
+      if (!payload.current_bill) {
+        throw new Error("Could not find the current bill amount.");
+      }
+
+      return payload;
+    }
+
+    function fillFplBillForm(payload) {
+      const setValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value ?? "";
+      };
+
+      setValue("billMonthInput", payload.month);
+      setValue("billStartInput", payload.billing_start);
+      setValue("billEndInput", payload.billing_end);
+      setValue("billDueInput", payload.due_date_iso);
+      setValue("totalUsageInput", payload.total_usage_kwh);
+      setValue("homeUsageInput", payload.home_usage_kwh);
+      setValue("evUsageInput", payload.ev_usage_kwh);
+      setValue("sentGridInput", payload.sent_to_grid_kwh);
+      setValue("appliedBillInput", payload.applied_to_bill_kwh);
+      setValue("reserveAddedInput", payload.reserve_added_kwh);
+      setValue("reserveBalanceInput", payload.reserve_balance_kwh);
+      setValue("baseChargeInput", payload.base_service_fee);
+      setValue("electricServiceInput", payload.electric_service_amount);
+      setValue("evolutionChargeInput", payload.evolution_home_charge);
+      setValue("grossTaxInput", payload.gross_receipts_tax);
+      setValue("regFeeInput", payload.regulatory_fee);
+      setValue("newChargesInput", payload.total_new_charges);
+      setValue("currentBillInput", payload.current_bill);
+    }
+
+    async function saveExtractedFplBill(payload) {
+      const cleanPayload = { ...payload };
+      delete cleanPayload.due_date_iso;
+
+      const { data: existing, error: findError } = await client
+        .from("fpl_bills")
+        .select("id")
+        .eq("billing_end", cleanPayload.billing_end)
+        .limit(1);
+
+      if (findError) throw findError;
+
+      if (existing && existing.length) {
+        const { error } = await client.from("fpl_bills").update(cleanPayload).eq("id", existing[0].id);
+        if (error) throw error;
+        return "updated";
+      }
+
+      const { error } = await client.from("fpl_bills").insert(cleanPayload);
+      if (error) throw error;
+      return "saved";
+    }
+
     async function uploadFplBill() {
       const input = document.getElementById("fplFileInput");
       const status = document.getElementById("uploadStatus");
+      const detailsStatus = document.getElementById("billDetailsStatus");
 
       if (!input.files || !input.files.length) {
         status.textContent = "No PDF selected yet.";
@@ -974,6 +1121,7 @@
 
       try {
         status.textContent = `Uploading ${file.name}...`;
+        detailsStatus.textContent = "Reading PDF text...";
 
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const monthFolder = new Date().toISOString().slice(0, 7);
@@ -987,25 +1135,35 @@
 
         if (uploadError) throw uploadError;
 
-        const { error: logError } = await client
+        status.textContent = `Uploaded: ${file.name}. Extracting bill details...`;
+
+        const rawText = await extractPdfText(file);
+        const extracted = extractFplBillFields(rawText);
+        fillFplBillForm(extracted);
+
+        const { data: uploadRow, error: logError } = await client
           .from("fpl_bill_uploads")
-          .insert({ file_name: file.name, file_path: path, billing_month: null, status: "uploaded" });
+          .insert({ file_name: file.name, file_path: path, billing_month: extracted.month, status: "extracted" })
+          .select("id")
+          .single();
 
         if (logError) {
-          status.textContent = "PDF uploaded, but upload log was not saved. Check fpl_bill_uploads insert policy.";
-          input.value = "";
-          return;
+          console.warn("PDF uploaded and parsed, but upload log was not saved:", logError);
         }
 
-        status.textContent = `Uploaded: ${file.name}. Now enter the bill details and save them.`;
+        const saveMode = await saveExtractedFplBill(extracted);
+
+        status.textContent = `Uploaded and extracted: ${file.name}.`;
+        detailsStatus.textContent = `${extracted.month} bill ${saveMode}. Dashboard refreshed.`;
         input.value = "";
+        await loadSolarHub();
       } catch (error) {
         console.error(error);
-        status.textContent = `Upload failed: ${error.message || "Unknown error"}`;
+        status.textContent = `Upload/extraction failed: ${error.message || "Unknown error"}`;
+        detailsStatus.textContent = "PDF was not saved to FPL bill data. Check the console if this keeps happening.";
         input.value = "";
       }
     }
-
 
     function fieldNumber(id) {
       const value = document.getElementById(id)?.value;
@@ -1086,15 +1244,14 @@
 
       status.textContent = "Saving FPL bill details...";
 
-      const { error } = await client.from("fpl_bills").insert(payload);
-
-      if (error) {
+      try {
+        const saveMode = await saveExtractedFplBill(payload);
+        status.textContent = `${month} bill ${saveMode}.`;
+      } catch (error) {
         console.error(error);
         status.textContent = `Save failed: ${error.message}`;
         return;
       }
-
-      status.textContent = `Saved FPL bill details for ${month}.`;
       clearFplBillForm();
       await loadSolarHub();
     }
