@@ -9,11 +9,21 @@ const STORAGE_KEYS = {
   budget: "tinyTenant.v1.budget"
 };
 
+const CHECKLIST_CATEGORIES = ["Nursery", "Feeding", "Travel", "Accessories"];
+
 const DEFAULT_CHECKLIST = [
   ["Nursery", "Crib"], ["Nursery", "Mattress"], ["Nursery", "Monitor"], ["Nursery", "Dresser"],
   ["Feeding", "Bottles"], ["Feeding", "Pump"], ["Feeding", "Formula"], ["Feeding", "Nursing Supplies"],
-  ["Travel", "Car Seat"], ["Travel", "Stroller"], ["Travel", "Diaper Bag"]
-].map(([category, item_name], index) => ({ item_key: `${category.toLowerCase()}-${index}-${item_name.toLowerCase().replaceAll(" ", "-")}`, category, item_name, completed: false }));
+  ["Travel", "Car Seat"], ["Travel", "Stroller"], ["Travel", "Diaper Bag"],
+  ["Accessories", "Baby Tub"], ["Accessories", "Lounger"], ["Accessories", "Swing"], ["Accessories", "Swaddles"],
+  ["Accessories", "Binkies / Pacifiers"], ["Accessories", "Sound Machine"], ["Accessories", "Baby Carrier"],
+  ["Accessories", "Burp Cloths"], ["Accessories", "Blankets"], ["Accessories", "Changing Pad"]
+].map(([category, item_name], index) => ({
+  item_key: `${category.toLowerCase()}-${index}-${item_name.toLowerCase().replaceAll(" ", "-").replaceAll("/", "-")}`,
+  category,
+  item_name,
+  completed: false
+}));
 
 const state = {
   profile: readLocal(STORAGE_KEYS.profile, { profile_key: PROFILE_KEY, due_date: "" }),
@@ -248,7 +258,7 @@ function renderPregnancy() {
 function renderChecklist() {
   const container = $("checklistGroups");
   container.innerHTML = "";
-  ["Nursery", "Feeding", "Travel"].forEach((category) => {
+  CHECKLIST_CATEGORIES.forEach((category) => {
     const items = state.checklist.filter((item) => item.category === category);
     const completed = items.filter((item) => item.completed).length;
     const percent = items.length ? Math.round((completed / items.length) * 100) : 0;
