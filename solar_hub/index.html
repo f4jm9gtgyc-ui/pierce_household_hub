@@ -807,7 +807,7 @@
       <div class="section-title">
         <div>
           <h2>Current Status</h2>
-          <p>Top-line metrics for the selected month from Terra daily entries and FPL billing.</p>
+          <p>Top-line metrics aligned to the selected FPL billing period.</p>
         </div>
       </div>
 
@@ -817,7 +817,7 @@
             <div class="kpi-top"><div class="label">Solar Generated</div><div class="icon">☀</div></div>
             <div class="value brown"><span id="solarGenerated">--</span> <small>kWh</small></div>
           </div>
-          <div class="sub">Month-to-date from daily entries</div>
+          <div class="sub">Billing-period total from Terra entries</div>
         </article>
 
         <article class="card kpi">
@@ -825,7 +825,7 @@
             <div class="kpi-top"><div class="label">Home Usage</div><div class="icon">⌂</div></div>
             <div class="value"><span id="homeUsage">--</span> <small>kWh</small></div>
           </div>
-          <div class="sub">Latest FPL billing period</div>
+          <div class="sub">Selected FPL billing period</div>
         </article>
 
         <article class="card kpi">
@@ -916,18 +916,19 @@
       <div class="section-title">
         <div>
           <h2>History & Performance</h2>
-          <p>Monthly energy detail, daily production performance, and lifetime system totals.</p>
+          <p>Billing-period energy detail, daily production performance, and lifetime system totals.</p>
         </div>
       </div>
 
       <div class="grid-3">
         <article class="card panel">
-          <h3>Monthly Energy Overview</h3>
+          <h3>Billing Period Overview</h3>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Month</th>
+                  <th>Bill Month</th>
+                  <th>Billing Period</th>
                   <th class="right">Terra Days</th>
                   <th class="right">Solar Generated</th>
                   <th class="right">Home Usage</th>
@@ -946,7 +947,7 @@
           <h3>Solar Performance</h3>
           <div class="performance-grid">
             <div class="performance-tile"><span>Today</span><strong><span id="todayProduction">--</span> kWh</strong></div>
-            <div class="performance-tile"><span>Month-to-Date</span><strong><span id="mtdProduction">--</span> kWh</strong></div>
+            <div class="performance-tile"><span>Billing Period</span><strong><span id="mtdProduction">--</span> kWh</strong></div>
             <div class="performance-tile"><span>Daily Average</span><strong><span id="avgProduction">--</span> kWh</strong></div>
             <div class="performance-tile"><span>Best Day</span><strong><span id="bestProduction">--</span> kWh</strong></div>
           </div>
@@ -1082,10 +1083,10 @@
           </div>
 
           <div class="form-card">
-            <h3>Month-to-Date Solar</h3>
+            <h3>Billing-Period Solar</h3>
             <div class="value brown"><span id="manageMtd">--</span> <small>kWh</small></div>
-            <div class="sub">Calculated from <strong>solar_daily</strong>.</div>
-            <div class="rowline"><span>Entries This Month</span><strong id="entryCount">--</strong></div>
+            <div class="sub">Calculated from <strong>solar_daily</strong> within the selected FPL billing period.</div>
+            <div class="rowline"><span>Entries This Period</span><strong id="entryCount">--</strong></div>
             <div class="rowline"><span>Latest Entry</span><strong id="latestEntryDate">--</strong></div>
             <div class="validation-grid">
               <span id="validationMissing" class="status-badge status-good">Checking Terra days...</span>
@@ -1102,7 +1103,7 @@
               </div>
               <div class="daily-log-controls">
                 <div class="field">
-                  <label for="dailyLogMonth">Month to Review</label>
+                  <label for="dailyLogMonth">Month / Billing Period to Review</label>
                   <input id="dailyLogMonth" type="month" />
                 </div>
               </div>
@@ -1111,7 +1112,7 @@
             <div class="daily-summary-grid">
               <div class="daily-summary-tile"><span>Days Entered</span><strong id="logDaysEntered">--</strong></div>
               <div class="daily-summary-tile"><span>Days Missing</span><strong id="logDaysMissing">--</strong></div>
-              <div class="daily-summary-tile"><span>Month Total</span><strong><span id="logMonthTotal">--</span> kWh</strong></div>
+              <div class="daily-summary-tile"><span>Period Total</span><strong><span id="logMonthTotal">--</span> kWh</strong></div>
               <div class="daily-summary-tile"><span>Daily Average</span><strong><span id="logDailyAvg">--</span> kWh</strong></div>
             </div>
 
@@ -1146,11 +1147,12 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = "https://jzijopsswwqnhmrjbwgh.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6aWpvcHNzd3dxbmhtcmpid2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5MDg4MzMsImV4cCI6MjA5NzQ4NDgzM30.xINNWvchRGPr7hlcrSV98u_gsH2HFiQ_wdlXbGQ6MkM";
+    const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
+    const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE";
 
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     let dailyAllCache = [];
+    let activeDailyPeriod = null;
 
     if (window.pdfjsLib) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -1585,7 +1587,7 @@
         const dashboardMonthSelector = document.getElementById("dashboardMonthSelector");
         if (dashboardMonthSelector && !dashboardMonthSelector.value) dashboardMonthSelector.value = displayMonthKey;
 
-        const selectedDaily = dailyAll.filter(row => monthValueFromDate(row.production_date) === displayMonthKey);
+        const selectedDaily = bill ? billingPeriodDailyRows(dailyAll, bill) : dailyAll.filter(row => monthValueFromDate(row.production_date) === displayMonthKey);
         const mtd = selectedDaily.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0);
         const todayRow = dailyAll.find(row => row.production_date === today);
         const todayProduction = Number(todayRow?.solar_generated_kwh || 0);
@@ -1627,7 +1629,7 @@
         setText("regFee", money(bill?.regulatory_fee));
         setText("newCharges", money(bill?.total_new_charges));
         setText("billTotal", money(currentBill));
-        const billingPeriodText = bill?.billing_start && bill?.billing_end ? `${bill.billing_start} to ${bill.billing_end}` : "--";
+        const billingPeriodText = bill?.billing_start && bill?.billing_end ? `${formatShortDate(bill.billing_start)} to ${formatShortDate(bill.billing_end)}` : "--";
         setText("billingPeriod", billingPeriodText);
         setText("statusBillingPeriod", billingPeriodText);
         setText("statusLastSync", new Date().toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }));
@@ -1652,6 +1654,9 @@
 
         renderMonthlyTable(monthly, bills, displaySolar, bill);
         renderEnergyChart(buildChartRows(monthly, bills, displaySolar, bill));
+        if (!activeDailyPeriod && bill?.billing_start && bill?.billing_end) {
+          activeDailyPeriod = { start: bill.billing_start, end: bill.billing_end, label: `${monthNameFromBill(bill)} · ${billPeriodLabel(bill)}`, expected: expectedDaysForBill(bill) };
+        }
         renderDailySolarLog(dailyAll);
       } catch (error) {
         console.error(error);
@@ -1675,6 +1680,26 @@
       return monthValueFromDate(todayISO());
     }
 
+    function billPeriodLabel(bill) {
+      if (bill?.billing_start && bill?.billing_end) return `${formatShortDate(bill.billing_start)} - ${formatShortDate(bill.billing_end)}`;
+      return "--";
+    }
+
+    function billingPeriodDailyRows(rows, bill) {
+      if (!bill?.billing_start || !bill?.billing_end) {
+        const key = bill ? monthKeyFromBill(bill) : monthValueFromDate(todayISO());
+        return (rows || []).filter(row => monthValueFromDate(row.production_date) === key);
+      }
+      const start = bill.billing_start;
+      const end = bill.billing_end;
+      return (rows || []).filter(row => row.production_date > start && row.production_date <= end);
+    }
+
+    function expectedDaysForBill(bill) {
+      if (bill?.billing_days) return Number(bill.billing_days);
+      return expectedDaysForMonthKey(monthKeyFromBill(bill));
+    }
+
     function expectedDaysForMonthKey(monthKey) {
       const [year, month] = String(monthKey || monthValueFromDate(todayISO())).split("-").map(Number);
       if (!year || !month) return 0;
@@ -1684,7 +1709,7 @@
     }
 
     function updateDashboardValidation(displayMonth, monthKey, selectedDaily, bill, uploads) {
-      const expected = expectedDaysForMonthKey(monthKey);
+      const expected = bill ? expectedDaysForBill(bill) : expectedDaysForMonthKey(monthKey);
       const entered = selectedDaily.length;
       const missing = Math.max(0, expected - entered);
       const uploadedForMonth = Boolean(bill) || (uploads || []).some(upload => {
@@ -1713,7 +1738,21 @@
       }
     }
 
+    function filterDailyLogToBillingPeriod(bill) {
+      activeDailyPeriod = bill?.billing_start && bill?.billing_end ? {
+        start: bill.billing_start,
+        end: bill.billing_end,
+        label: `${monthNameFromBill(bill)} · ${billPeriodLabel(bill)}`,
+        expected: expectedDaysForBill(bill)
+      } : null;
+      const input = document.getElementById("dailyLogMonth");
+      if (input) input.value = bill ? monthKeyFromBill(bill) : monthValueFromDate(todayISO());
+      renderDailySolarLog(dailyAllCache);
+      document.getElementById("dailyLogRows")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
     function filterDailyLogToMonth(monthKey) {
+      activeDailyPeriod = null;
       const input = document.getElementById("dailyLogMonth");
       if (input) input.value = monthKey;
       renderDailySolarLog(dailyAllCache);
@@ -1729,8 +1768,7 @@
           const label = monthNameFromBill(bill);
           const matchingMonthly = (monthly || []).find(row => row.month === bill.month || row.month === label);
           const monthKey = monthKeyFromBill(bill);
-          const dailySolar = dailyAllCache
-            .filter(row => monthValueFromDate(row.production_date) === monthKey)
+          const dailySolar = billingPeriodDailyRows(dailyAllCache, bill)
             .reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0);
           rows.push({
             month: label,
@@ -1756,19 +1794,20 @@
     function renderMonthlyTable(monthly, bills, currentSolar, currentBill) {
       const tbody = document.getElementById("monthlyRows");
       const rows = [];
-      const seen = new Set();
 
       (bills || []).slice(0, 8).forEach((bill) => {
         const label = monthNameFromBill(bill);
         const key = monthKeyFromBill(bill);
         const matchingMonthly = (monthly || []).find(row => row.month === bill.month || row.month === label);
-        const dailyForMonth = dailyAllCache.filter(row => monthValueFromDate(row.production_date) === key);
-        const solarTotal = dailyForMonth.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0) || Number(matchingMonthly?.solar_generated_kwh || 0);
-        const expected = expectedDaysForMonthKey(key);
-        const entered = dailyForMonth.length;
+        const dailyForPeriod = billingPeriodDailyRows(dailyAllCache, bill);
+        const solarTotal = dailyForPeriod.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0) || Number(matchingMonthly?.solar_generated_kwh || 0);
+        const expected = expectedDaysForBill(bill);
+        const entered = dailyForPeriod.length;
 
         rows.push({
+          bill,
           month: label,
+          period: billPeriodLabel(bill),
           monthKey: key,
           terraDays: `${entered}/${expected}`,
           terraStatus: entered >= expected ? "status-good" : entered >= Math.max(0, expected - 2) ? "status-low" : "status-missing",
@@ -1777,9 +1816,8 @@
           sent: Number(bill.sent_to_grid_kwh || matchingMonthly?.sent_to_fpl_kwh || 0),
           applied: Number(bill.applied_to_bill_kwh || 0),
           reserve: Number(bill.reserve_balance_kwh || matchingMonthly?.net_meter_bank_kwh || 0),
-          bill: Number(bill.current_bill ?? bill.total_bill ?? 0)
+          billTotal: Number(bill.current_bill ?? bill.total_bill ?? 0)
         });
-        seen.add(key);
       });
 
       if (!rows.length) {
@@ -1788,7 +1826,9 @@
           const dailyForMonth = dailyAllCache.filter(item => monthValueFromDate(item.production_date) === key);
           const expected = expectedDaysForMonthKey(key);
           rows.push({
+            bill: null,
             month: row.month,
+            period: "--",
             monthKey: key,
             terraDays: `${dailyForMonth.length}/${expected}`,
             terraStatus: dailyForMonth.length >= expected ? "status-good" : "status-missing",
@@ -1797,26 +1837,31 @@
             sent: Number(row.sent_to_fpl_kwh || 0),
             applied: 0,
             reserve: Number(row.net_meter_bank_kwh || 0),
-            bill: 0
+            billTotal: 0
           });
         });
       }
 
-      tbody.innerHTML = rows.map(row => `
-        <tr class="month-row" data-month-key="${row.monthKey}">
+      tbody.innerHTML = rows.map((row, index) => `
+        <tr class="month-row" data-row-index="${index}" data-month-key="${row.monthKey}">
           <td><strong>${row.month}</strong></td>
+          <td>${row.period}</td>
           <td class="right"><span class="status-badge ${row.terraStatus}">${row.terraDays}</span></td>
           <td class="right">${intNumber(row.solar)}</td>
           <td class="right">${intNumber(row.usage)}</td>
           <td class="right">${intNumber(row.sent)}</td>
           <td class="right">${intNumber(row.applied)}</td>
           <td class="right">${intNumber(row.reserve)}</td>
-          <td class="right">$${money(row.bill)}</td>
+          <td class="right">$${money(row.billTotal)}</td>
         </tr>
-      `).join("") || `<tr><td colspan="8">No monthly data yet.</td></tr>`;
+      `).join("") || `<tr><td colspan="9">No billing-period data yet.</td></tr>`;
 
-      tbody.querySelectorAll("[data-month-key]").forEach(row => {
-        row.addEventListener("click", () => filterDailyLogToMonth(row.dataset.monthKey));
+      tbody.querySelectorAll("[data-row-index]").forEach(rowEl => {
+        rowEl.addEventListener("click", () => {
+          const row = rows[Number(rowEl.dataset.rowIndex)];
+          if (row?.bill) filterDailyLogToBillingPeriod(row.bill);
+          else filterDailyLogToMonth(row.monthKey);
+        });
       });
     }
 
@@ -1899,15 +1944,29 @@
       const [year, month] = monthValue.split("-").map(Number);
       if (!year || !month) return;
 
-      const today = todayISO();
-      const isCurrentMonth = monthValue === monthValueFromDate(today);
-      const lastDay = isCurrentMonth ? Number(today.slice(8, 10)) : daysInMonth(year, month - 1);
+      let dateList = [];
+      let entries = [];
+      let expected = 0;
 
-      const entries = (rows || []).filter(row => monthValueFromDate(row.production_date) === monthValue);
+      if (activeDailyPeriod?.start && activeDailyPeriod?.end) {
+        entries = (rows || []).filter(row => row.production_date > activeDailyPeriod.start && row.production_date <= activeDailyPeriod.end);
+        dateList = buildDateList(activeDailyPeriod.start, activeDailyPeriod.end, true);
+        expected = Number(activeDailyPeriod.expected || dateList.length);
+      } else {
+        const today = todayISO();
+        const isCurrentMonth = monthValue === monthValueFromDate(today);
+        const lastDay = isCurrentMonth ? Number(today.slice(8, 10)) : daysInMonth(year, month - 1);
+        for (let day = lastDay; day >= 1; day--) {
+          dateList.push(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+        }
+        entries = (rows || []).filter(row => monthValueFromDate(row.production_date) === monthValue);
+        expected = lastDay;
+      }
+
       const entryMap = new Map(entries.map(row => [row.production_date, row]));
       const total = entries.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0);
       const avg = entries.length ? total / entries.length : 0;
-      const missing = Math.max(0, lastDay - entries.length);
+      const missing = Math.max(0, expected - entries.length);
 
       setText("logDaysEntered", entries.length);
       setText("logDaysMissing", missing);
@@ -1915,8 +1974,7 @@
       setText("logDailyAvg", number(avg));
 
       const html = [];
-      for (let day = lastDay; day >= 1; day--) {
-        const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      dateList.forEach(date => {
         const row = entryMap.get(date);
 
         if (!row) {
@@ -1929,7 +1987,7 @@
               <td class="right"><button class="table-action" type="button" data-add-date="${date}">Add</button></td>
             </tr>
           `);
-          continue;
+          return;
         }
 
         const kwh = Number(row.solar_generated_kwh || 0);
@@ -1953,7 +2011,7 @@
             <td class="right"><button class="table-action" type="button" data-edit-date="${date}">Edit</button></td>
           </tr>
         `);
-      }
+      });
 
       tbody.innerHTML = html.join("");
       tbody.querySelectorAll("[data-edit-date]").forEach(button => {
@@ -1964,13 +2022,18 @@
       });
     }
 
-    function addDailyLogEntry(date) {
-      document.getElementById("dailyDate").value = date;
-      document.getElementById("dailyKwh").value = "";
-      document.getElementById("dailyNotes").value = "";
-      document.getElementById("dailyStatus").textContent = `Ready to add Terra entry for ${date}.`;
-      document.getElementById("dailyDate").scrollIntoView({ behavior: "smooth", block: "center" });
-      document.getElementById("dailyKwh").focus();
+    function buildDateList(startDate, endDate, startExclusive = false) {
+      const dates = [];
+      const start = new Date(`${startDate}T12:00:00`);
+      const end = new Date(`${endDate}T12:00:00`);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return dates;
+      const cursor = new Date(start);
+      if (startExclusive) cursor.setDate(cursor.getDate() + 1);
+      while (cursor <= end) {
+        dates.unshift(cursor.toISOString().slice(0, 10));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return dates;
     }
 
     function editDailyLogEntry(date) {
