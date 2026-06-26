@@ -1,0 +1,2018 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Solar Hub</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #f7f1e8;
+      --card: #fffaf2;
+      --card-2: #fbf5ec;
+      --ink: #241815;
+      --muted: #7e7168;
+      --line: rgba(90, 62, 39, .16);
+      --brown: #5a361f;
+      --brown-dark: #2a1710;
+      --amber: #f2a000;
+      --green: #42680f;
+      --red: #9b241d;
+      --shadow: 0 14px 35px rgba(50, 32, 18, .07);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,.75), transparent 38%),
+        linear-gradient(135deg, #f8f2e8 0%, #f5eee3 100%);
+      color: var(--ink);
+      padding-bottom: 88px;
+      overflow-x: hidden;
+    }
+
+    .app {
+      width: 100%;
+      max-width: none;
+      margin: 0 auto;
+      padding: 22px;
+      overflow-x: hidden;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 22px;
+    }
+
+    .home-btn,
+    .pill-btn,
+    .primary-btn,
+    .secondary-btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.55);
+      border-radius: 12px;
+      padding: 13px 18px;
+      font-weight: 850;
+      color: var(--brown-dark);
+      min-height: 48px;
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .home-btn { align-self: start; }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #6b4325, #2b170e);
+      color: white;
+      border-color: transparent;
+    }
+
+    .secondary-btn { background: rgba(255,250,242,.75); }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .sun {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 0 9px rgba(242,160,0,.13);
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .sun::before {
+      content: "☀";
+      position: absolute;
+      inset: -14px;
+      display: grid;
+      place-items: center;
+      color: var(--amber);
+      font-size: 70px;
+      line-height: 1;
+    }
+
+    .brand h1 {
+      font-size: 25px;
+      margin: 0;
+      letter-spacing: -.04em;
+    }
+
+    .brand p,
+    .page-title p {
+      margin: 3px 0 0;
+      font-size: 14px;
+      color: var(--ink);
+    }
+
+    .page-title h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: -.04em;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+
+
+    .status-bar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0 0 18px;
+    }
+
+    .status-card {
+      background: rgba(255,250,242,.78);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      min-width: 0;
+    }
+
+    .status-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .status-card strong {
+      display: block;
+      font-size: 17px;
+      letter-spacing: -.03em;
+    }
+
+    .status-card .primary-btn {
+      width: 100%;
+      min-height: 42px;
+      padding: 10px 14px;
+    }
+
+    .month-select {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.55);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 850;
+      color: var(--brown-dark);
+      min-height: 48px;
+      font-family: inherit;
+    }
+
+    .validation-grid {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .flow-accurate {
+      display: grid;
+      gap: 12px;
+      min-height: 280px;
+    }
+
+    .flow-stage {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .flow-stage.single {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: 260px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .flow-arrow {
+      display: grid;
+      place-items: center;
+      color: var(--brown);
+      font-weight: 900;
+      font-size: 22px;
+      line-height: 1;
+      min-height: 18px;
+    }
+
+    tr.month-row { cursor: pointer; }
+    tr.month-row:hover { background: rgba(226,205,178,.16); }
+
+    section { scroll-margin-top: 22px; }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin: 8px 0 12px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -.03em;
+    }
+
+    .section-title p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+      width: 100%;
+    }
+
+    .card {
+      background: rgba(255,250,242,.78);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .kpi {
+      min-height: 160px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .kpi-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .label {
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .icon {
+      color: var(--brown);
+      opacity: .9;
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .value {
+      font-size: 29px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -.05em;
+      margin-top: 14px;
+    }
+
+    .value small {
+      font-size: 15px;
+      letter-spacing: -.02em;
+      font-weight: 850;
+    }
+
+    .sub {
+      color: var(--ink);
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    .green { color: var(--green); }
+    .red { color: var(--red); }
+    .brown { color: var(--brown); }
+    .muted { color: var(--muted); }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+      width: 100%;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      padding: 20px;
+      min-height: 320px;
+      min-width: 0;
+    }
+
+    .panel h3 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      letter-spacing: -.03em;
+    }
+
+    .chart {
+      width: 100%;
+      max-width: 100%;
+      height: 420px;
+      overflow: hidden;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 750;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 22px;
+      height: 12px;
+      border-radius: 4px;
+      margin-right: 10px;
+      background: var(--brown);
+      vertical-align: middle;
+    }
+
+    .dot.light { background: #e4bd8d; }
+    .dot.line {
+      width: 30px;
+      height: 0;
+      border-top: 4px solid var(--green);
+      background: transparent;
+      transform: translateY(-3px);
+    }
+
+    .flow-stack {
+      display: grid;
+      gap: 12px;
+      min-height: 250px;
+    }
+
+    .flow-cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      background: rgba(255,250,242,.74);
+      border-radius: 14px;
+      padding: 14px 10px;
+      text-align: center;
+      min-height: 106px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: visible;
+    }
+
+    .mini-card .emoji {
+      font-size: 30px;
+      line-height: 1;
+      margin-bottom: 8px;
+      color: var(--amber);
+      display: block;
+    }
+
+    .mini-card strong {
+      font-size: 18px;
+      display: block;
+      line-height: 1.15;
+    }
+
+    .mini-card span { font-size: 12px; }
+
+    .flow-divider {
+      height: 1px;
+      background: var(--line);
+      position: relative;
+      margin: 4px 0;
+    }
+
+    .flow-divider::after {
+      content: "↓";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--card);
+      color: var(--brown);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+    }
+
+    .rowline {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 9px 0;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(90,62,39,.08);
+    }
+
+    .rowline.total {
+      margin-top: 12px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      font-weight: 900;
+      border-bottom: 0;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      text-align: left;
+      padding: 9px 10px;
+      background: rgba(226, 205, 178, .25);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 11px 10px;
+      border-bottom: 1px solid rgba(90,62,39,.1);
+      white-space: nowrap;
+    }
+
+    .right { text-align: right; }
+
+    .performance-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .performance-tile {
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(255,250,242,.7);
+      padding: 16px;
+      min-height: 96px;
+    }
+
+    .performance-tile span {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      font-weight: 850;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .performance-tile strong {
+      display: block;
+      font-size: 24px;
+      letter-spacing: -.04em;
+    }
+
+    .manage-panel {
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    .manage-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .form-card {
+      border: 1px solid var(--line);
+      background: rgba(255,250,242,.62);
+      border-radius: 16px;
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .form-card h3 {
+      margin: 0 0 14px;
+      font-size: 17px;
+      letter-spacing: -.03em;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--muted);
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 13px;
+      font: inherit;
+      color: var(--ink);
+      background: rgba(255,255,255,.7);
+      outline: none;
+    }
+
+    textarea { min-height: 88px; resize: vertical; }
+    #fplFileInput {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .status-note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+
+
+    .daily-log-card {
+      grid-column: 1 / -1;
+    }
+
+    .daily-log-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .daily-log-controls {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+
+    .daily-log-controls .field {
+      margin-bottom: 0;
+      min-width: 190px;
+    }
+
+    .daily-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 12px 0 16px;
+    }
+
+    .daily-summary-tile {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,250,242,.65);
+      padding: 13px;
+    }
+
+    .daily-summary-tile span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 5px;
+    }
+
+    .daily-summary-tile strong {
+      font-size: 20px;
+      letter-spacing: -.03em;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 92px;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 900;
+      border: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    .status-good { color: var(--green); background: rgba(66,104,15,.08); }
+    .status-missing { color: var(--red); background: rgba(155,36,29,.08); }
+    .status-low { color: #9a6400; background: rgba(242,160,0,.12); }
+    .status-high { color: var(--brown); background: rgba(90,54,31,.08); }
+
+    .table-action {
+      border: 1px solid var(--line);
+      background: rgba(255,250,242,.75);
+      color: var(--brown-dark);
+      border-radius: 10px;
+      padding: 7px 10px;
+      font-weight: 850;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .daily-log-missing td {
+      color: var(--muted);
+      background: rgba(155,36,29,.035);
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      min-height: 76px;
+      background: rgba(247, 241, 232, .88);
+      backdrop-filter: blur(14px);
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      z-index: 10;
+      padding: 10px 18px;
+      overflow-x: auto;
+    }
+
+    .nav-btn {
+      border: 1px solid var(--line);
+      background: rgba(255,250,242,.78);
+      color: var(--brown-dark);
+      border-radius: 15px;
+      padding: 12px 20px;
+      font-weight: 850;
+      min-width: 116px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .nav-btn.active,
+    .nav-btn:hover {
+      background: linear-gradient(135deg, #6b4325, #2b170e);
+      color: white;
+      border-color: transparent;
+    }
+
+    .error {
+      display: none;
+      margin-bottom: 16px;
+      padding: 14px 18px;
+      border-radius: 14px;
+      background: rgba(155,36,29,.08);
+      color: var(--red);
+      border: 1px solid rgba(155,36,29,.18);
+      font-weight: 750;
+    }
+
+    @media (min-width: 900px) and (max-width: 1180px) {
+      .app { padding: 18px; }
+      header { grid-template-columns: auto 210px 1fr auto; gap: 12px; }
+      .home-btn, .pill-btn { padding: 11px 13px; }
+      .kpi-grid { gap: 10px; }
+      .kpi { padding: 16px; min-height: 150px; }
+      .value { font-size: 24px; }
+      .grid-3 { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+      .panel { padding: 16px; min-height: 300px; }
+      .chart { height: 390px; }
+      .manage-grid { grid-template-columns: 1fr 1fr; }
+      .nav-btn { min-width: auto; padding: 11px 15px; }
+    }
+
+    @media (max-width: 899px) {
+      .app { padding: 16px; }
+      header { grid-template-columns: 1fr; }
+      .actions { justify-content: flex-start; flex-wrap: wrap; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-3, .manage-grid { grid-template-columns: 1fr; }
+      .bottom-nav { justify-content: flex-start; }
+      .nav-btn { min-width: max-content; }
+    }
+
+    @media (max-width: 560px) {
+      .status-bar { grid-template-columns: 1fr; }
+      .daily-summary-grid { grid-template-columns: 1fr; }
+      .daily-log-header { align-items: stretch; }
+      .daily-log-controls .field { min-width: 100%; }
+      .kpi-grid { grid-template-columns: 1fr; }
+      .performance-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <header>
+      <a class="home-btn" href="../index.html">← Home</a>
+
+      <section class="brand">
+        <div class="sun" aria-hidden="true"></div>
+        <div>
+          <h1>Solar Hub</h1>
+          <p>My Energy Dashboard</p>
+        </div>
+      </section>
+
+      <section class="actions">
+        <input id="dashboardMonthSelector" class="month-select" type="month" aria-label="Month selector" />
+      </section>
+    </header>
+
+    <div id="errorBox" class="error"></div>
+
+    <section class="status-bar" aria-label="Dashboard status">
+      <article class="status-card">
+        <span>Billing Period</span>
+        <strong id="statusBillingPeriod">--</strong>
+      </article>
+      <article class="status-card">
+        <span>Last Sync</span>
+        <strong id="statusLastSync">--</strong>
+      </article>
+      <article class="status-card">
+        <span>Terra Progress</span>
+        <strong id="statusTerraProgress">--</strong>
+      </article>
+      <article class="status-card">
+        <span>Upload FPL Bill</span>
+        <label class="primary-btn" for="fplFileInput" role="button" tabindex="0">Choose PDF</label>
+      </article>
+    </section>
+
+    <section id="overview">
+      <div class="section-title">
+        <div>
+          <h2>Current Status</h2>
+          <p>Top-line metrics for the selected month from Terra daily entries and FPL billing.</p>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="card kpi">
+          <div>
+            <div class="kpi-top"><div class="label">Solar Generated</div><div class="icon">☀</div></div>
+            <div class="value brown"><span id="solarGenerated">--</span> <small>kWh</small></div>
+          </div>
+          <div class="sub">Month-to-date from daily entries</div>
+        </article>
+
+        <article class="card kpi">
+          <div>
+            <div class="kpi-top"><div class="label">Home Usage</div><div class="icon">⌂</div></div>
+            <div class="value"><span id="homeUsage">--</span> <small>kWh</small></div>
+          </div>
+          <div class="sub">Latest FPL billing period</div>
+        </article>
+
+        <article class="card kpi">
+          <div>
+            <div class="kpi-top"><div class="label">Net Meter Bank</div><div class="icon">▣</div></div>
+            <div class="value green"><span id="netMeterBank">--</span> <small>kWh</small></div>
+          </div>
+          <div>
+            <div class="sub">Reserve balance</div>
+            <div class="sub">Estimated Value: <strong>$<span id="bankValue">--</span></strong></div>
+          </div>
+        </article>
+
+        <article class="card kpi">
+          <div>
+            <div class="kpi-top"><div class="label">Current FPL Bill</div><div class="icon">▤</div></div>
+            <div class="value red">$<span id="currentBill">--</span></div>
+          </div>
+          <div class="sub">Due <span id="dueDate">--</span></div>
+        </article>
+
+        <article class="card kpi">
+          <div>
+            <div class="kpi-top"><div class="label">Solar Savings</div><div class="icon">♧</div></div>
+            <div class="value green">$<span id="solarSavings">--</span></div>
+          </div>
+          <div class="sub">Estimated current month</div>
+        </article>
+      </div>
+    </section>
+
+    <section id="energy">
+      <div class="section-title">
+        <div>
+          <h2>Energy Analysis</h2>
+          <p>Production trend, energy movement, and the full FPL bill breakdown.</p>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <article class="card panel">
+          <h3>Energy Trend</h3>
+          <div class="legend">
+            <span><i class="dot"></i> Solar Generated</span>
+            <span><i class="dot light"></i> FPL Usage</span>
+            <span><i class="dot line"></i> Sent to Grid</span>
+          </div>
+          <svg id="energyChart" class="chart" viewBox="0 0 820 420" preserveAspectRatio="none"></svg>
+        </article>
+
+        <article class="card panel">
+          <h3>Energy Flow - <span id="flowMonth">--</span></h3>
+          <div class="flow-accurate">
+            <div class="flow-stage single">
+              <div class="mini-card"><span class="emoji">☀</span><strong><span id="flowSolar">--</span> kWh</strong><span>Solar Generated by Terra</span></div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-stage single">
+              <div class="mini-card"><span class="emoji">↗</span><strong class="green"><span id="flowSent">--</span> kWh</strong><span>Sent to FPL Grid</span></div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-stage">
+              <div class="mini-card"><span class="emoji">✓</span><strong class="green"><span id="flowApplied">--</span> kWh</strong><span>Applied to Bill</span></div>
+              <div class="mini-card"><span class="emoji">🔋</span><strong><span id="flowReserveBalance">--</span> kWh</strong><span>Net Meter Bank</span></div>
+            </div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-stage single">
+              <div class="mini-card"><span class="emoji">⌂</span><strong><span id="flowHome">--</span> kWh</strong><span>FPL Usage Reduced by Credits</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article id="fpl" class="card panel">
+          <h3>FPL Bill Breakdown - <span id="billMonth">--</span></h3>
+          <div class="rowline"><span>Base Charge</span><strong>$<span id="baseFee">--</span></strong></div>
+          <div class="rowline"><span>Electric Service</span><strong>$<span id="electricService">--</span></strong></div>
+          <div class="rowline"><span>FPL EVolution Charge</span><strong>$<span id="evolutionCharge">--</span></strong></div>
+          <div class="rowline"><span>Gross Receipts Tax</span><strong>$<span id="grossTax">--</span></strong></div>
+          <div class="rowline"><span>Regulatory Fee</span><strong>$<span id="regFee">--</span></strong></div>
+          <div class="rowline total"><span>Total New Charges</span><strong>$<span id="newCharges">--</span></strong></div>
+          <div class="rowline total"><span>Current Bill</span><strong class="red">$<span id="billTotal">--</span></strong></div>
+          <div class="sub">Billing Period: <strong id="billingPeriod">--</strong></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="performance">
+      <div class="section-title">
+        <div>
+          <h2>History & Performance</h2>
+          <p>Monthly energy detail, daily production performance, and lifetime system totals.</p>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <article class="card panel">
+          <h3>Monthly Energy Overview</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th class="right">Terra Days</th>
+                  <th class="right">Solar Generated</th>
+                  <th class="right">Home Usage</th>
+                  <th class="right">Sent to Grid</th>
+                  <th class="right">Applied to Bill</th>
+                  <th class="right">Net Meter Bank</th>
+                  <th class="right">Current Bill</th>
+                </tr>
+              </thead>
+              <tbody id="monthlyRows"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card panel">
+          <h3>Solar Performance</h3>
+          <div class="performance-grid">
+            <div class="performance-tile"><span>Today</span><strong><span id="todayProduction">--</span> kWh</strong></div>
+            <div class="performance-tile"><span>Month-to-Date</span><strong><span id="mtdProduction">--</span> kWh</strong></div>
+            <div class="performance-tile"><span>Daily Average</span><strong><span id="avgProduction">--</span> kWh</strong></div>
+            <div class="performance-tile"><span>Best Day</span><strong><span id="bestProduction">--</span> kWh</strong></div>
+          </div>
+          <div class="sub">Based on entries saved in <strong>solar_daily</strong>.</div>
+        </article>
+
+        <article id="system" class="card panel">
+          <h3>System Lifetime</h3>
+          <div class="rowline"><span>☀ Total Generated</span><strong><span id="lifeGenerated">--</span> kWh</strong></div>
+          <div class="rowline"><span>↗ Total Sent to Grid</span><strong><span id="lifeSent">--</span> kWh</strong></div>
+          <div class="rowline"><span>✓ Total Applied to Bill</span><strong><span id="lifeApplied">--</span> kWh</strong></div>
+          <div class="rowline"><span>♧ Lifetime Savings</span><strong class="green">$<span id="lifetimeSavings">8,421</span></strong></div>
+          <div class="rowline"><span>♧ CO₂ Offset</span><strong>18.7 Tons</strong></div>
+          <div class="rowline"><span>♤ Trees Equivalent</span><strong>217 Trees</strong></div>
+          <div class="sub">Since <span id="inService">--</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="manage">
+      <div class="section-title">
+        <div>
+          <h2>Manage Solar Hub</h2>
+          <p>Upload FPL bills and add Terra Energy daily production entries.</p>
+        </div>
+      </div>
+
+      <article class="card manage-panel">
+        <div class="manage-grid">
+          <div class="form-card">
+            <h3>Upload FPL Bill</h3>
+            <p class="sub">Uploads the PDF, extracts FPL bill values, saves them to Supabase, and refreshes the dashboard.</p>
+            <input id="fplFileInput" type="file" accept="application/pdf,.pdf" />
+            <label id="uploadFplBtn" class="primary-btn" for="fplFileInput" role="button" tabindex="0">Choose & Upload FPL Bill</label>
+            <div id="uploadStatus" class="status-note">No bill selected.</div>
+          </div>
+
+          <div class="form-card">
+            <h3>FPL Bill Details</h3>
+            <p class="sub">Auto-filled from the uploaded FPL PDF. Values are saved automatically after extraction, but you can adjust and save again if needed.</p>
+            <div class="field">
+              <label for="billMonthInput">Billing Month</label>
+              <input id="billMonthInput" type="text" placeholder="May 2026" />
+            </div>
+            <div class="field">
+              <label for="billStartInput">Billing Start</label>
+              <input id="billStartInput" type="date" />
+            </div>
+            <div class="field">
+              <label for="billEndInput">Billing End</label>
+              <input id="billEndInput" type="date" />
+            </div>
+            <div class="field">
+              <label for="billDueInput">Due Date</label>
+              <input id="billDueInput" type="date" />
+            </div>
+            <div class="field">
+              <label for="totalUsageInput">Total Usage kWh</label>
+              <input id="totalUsageInput" type="number" step="0.01" min="0" placeholder="1008" />
+            </div>
+            <div class="field">
+              <label for="homeUsageInput">Home Usage kWh</label>
+              <input id="homeUsageInput" type="number" step="0.01" min="0" placeholder="546" />
+            </div>
+            <div class="field">
+              <label for="evUsageInput">EV Usage kWh</label>
+              <input id="evUsageInput" type="number" step="0.01" min="0" placeholder="462" />
+            </div>
+            <div class="field">
+              <label for="sentGridInput">Sent to Grid kWh</label>
+              <input id="sentGridInput" type="number" step="0.01" min="0" placeholder="848" />
+            </div>
+            <div class="field">
+              <label for="appliedBillInput">Applied to Bill kWh</label>
+              <input id="appliedBillInput" type="number" step="0.01" min="0" placeholder="848" />
+            </div>
+            <div class="field">
+              <label for="reserveAddedInput">Reserve Increased kWh</label>
+              <input id="reserveAddedInput" type="number" step="0.01" placeholder="0" />
+            </div>
+            <div class="field">
+              <label for="reserveBalanceInput">Reserve Balance kWh</label>
+              <input id="reserveBalanceInput" type="number" step="0.01" min="0" placeholder="0" />
+            </div>
+            <div class="field">
+              <label for="baseChargeInput">Base Charge $</label>
+              <input id="baseChargeInput" type="number" step="0.01" min="0" placeholder="10.52" />
+            </div>
+            <div class="field">
+              <label for="electricServiceInput">Electric Service $</label>
+              <input id="electricServiceInput" type="number" step="0.01" min="0" placeholder="97.25" />
+            </div>
+            <div class="field">
+              <label for="evolutionChargeInput">FPL EVolution $</label>
+              <input id="evolutionChargeInput" type="number" step="0.01" min="0" placeholder="18.41" />
+            </div>
+            <div class="field">
+              <label for="grossTaxInput">Gross Receipts Tax $</label>
+              <input id="grossTaxInput" type="number" step="0.01" min="0" placeholder="2.50" />
+            </div>
+            <div class="field">
+              <label for="regFeeInput">Regulatory Fee $</label>
+              <input id="regFeeInput" type="number" step="0.01" min="0" placeholder="0.10" />
+            </div>
+            <div class="field">
+              <label for="newChargesInput">Total New Charges $</label>
+              <input id="newChargesInput" type="number" step="0.01" min="0" placeholder="118.26" />
+            </div>
+            <div class="field">
+              <label for="currentBillInput">Current Bill $</label>
+              <input id="currentBillInput" type="number" step="0.01" min="0" placeholder="85.59" />
+            </div>
+            <button id="saveFplBillBtn" class="primary-btn" type="button">Save / Update FPL Bill Details</button>
+            <div id="billDetailsStatus" class="status-note">Upload a bill to auto-fill and save details.</div>
+          </div>
+
+          <div class="form-card">
+            <h3>Daily Entry</h3>
+            <div class="field">
+              <label for="dailyDate">Date</label>
+              <input id="dailyDate" type="date" />
+            </div>
+            <div class="field">
+              <label for="dailyKwh">Solar Generated kWh</label>
+              <input id="dailyKwh" type="number" step="0.01" min="0" placeholder="42.8" />
+            </div>
+            <div class="field">
+              <label for="dailyNotes">Notes</label>
+              <textarea id="dailyNotes" placeholder="Optional note from Terra Energy"></textarea>
+            </div>
+            <button id="saveDailyBtn" class="primary-btn" type="button">Save Entry</button>
+            <div id="dailyStatus" class="status-note">Ready for daily Terra Energy data.</div>
+          </div>
+
+          <div class="form-card">
+            <h3>Month-to-Date Solar</h3>
+            <div class="value brown"><span id="manageMtd">--</span> <small>kWh</small></div>
+            <div class="sub">Calculated from <strong>solar_daily</strong>.</div>
+            <div class="rowline"><span>Entries This Month</span><strong id="entryCount">--</strong></div>
+            <div class="rowline"><span>Latest Entry</span><strong id="latestEntryDate">--</strong></div>
+            <div class="validation-grid">
+              <span id="validationMissing" class="status-badge status-good">Checking Terra days...</span>
+              <span id="validationBill" class="status-badge status-good">Checking FPL bill...</span>
+              <span id="validationTerra" class="status-badge status-good">Checking Terra completion...</span>
+            </div>
+          </div>
+
+          <div class="form-card daily-log-card">
+            <div class="daily-log-header">
+              <div>
+                <h3>Daily Solar Log</h3>
+                <div class="sub">Review Terra Energy daily entries and spot missing or unusual days.</div>
+              </div>
+              <div class="daily-log-controls">
+                <div class="field">
+                  <label for="dailyLogMonth">Month to Review</label>
+                  <input id="dailyLogMonth" type="month" />
+                </div>
+              </div>
+            </div>
+
+            <div class="daily-summary-grid">
+              <div class="daily-summary-tile"><span>Days Entered</span><strong id="logDaysEntered">--</strong></div>
+              <div class="daily-summary-tile"><span>Days Missing</span><strong id="logDaysMissing">--</strong></div>
+              <div class="daily-summary-tile"><span>Month Total</span><strong><span id="logMonthTotal">--</span> kWh</strong></div>
+              <div class="daily-summary-tile"><span>Daily Average</span><strong><span id="logDailyAvg">--</span> kWh</strong></div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th class="right">Solar Generated kWh</th>
+                    <th>Notes</th>
+                    <th>Status</th>
+                    <th class="right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="dailyLogRows"></tbody>
+              </table>
+            </div>
+            <div class="status-note">Tip: use Edit/Add to load that date into the Daily Entry form above.</div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <a class="nav-btn active" href="#overview">⌂ Overview</a>
+    <a class="nav-btn" href="#energy">ϟ Energy</a>
+    <a class="nav-btn" href="#fpl">▤ FPL Bill</a>
+    <a class="nav-btn" href="#performance">☀ Performance</a>
+    <a class="nav-btn" href="#system">▥ System</a>
+    <a class="nav-btn" href="#manage">⚙ Manage</a>
+  </nav>
+
+  <script>
+    const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
+    const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE";
+
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let dailyAllCache = [];
+
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+
+    const todayISO = () => new Date().toISOString().slice(0, 10);
+    const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+    const monthLabel = dateValue => {
+      const date = new Date(`${dateValue}T12:00:00`);
+      return date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+    };
+
+    const money = value => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const number = value => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const intNumber = value => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+
+    function showError(message) {
+      const box = document.getElementById("errorBox");
+      box.textContent = message;
+      box.style.display = "block";
+    }
+
+    function clearError() {
+      const box = document.getElementById("errorBox");
+      box.textContent = "";
+      box.style.display = "none";
+    }
+
+    function monthNameFromBill(bill) {
+      if (bill?.month) return bill.month;
+      if (bill?.billing_end) return monthLabel(bill.billing_end);
+      return monthLabel(todayISO());
+    }
+
+    function firstDayOfCurrentMonth() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    }
+
+    function prepareFplBillPicker(event) {
+      const status = document.getElementById("uploadStatus");
+      status.textContent = "Choose a PDF bill to upload.";
+
+      if (event && event.type === "keydown" && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        document.getElementById("fplFileInput").click();
+      }
+    }
+
+    function toNumber(value) {
+      if (value == null) return 0;
+      const cleaned = String(value).replace(/[$,]/g, "").replace(/[−–—]/g, "-").trim();
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function normalizePdfText(text) {
+      return String(text || "")
+        .replace(/\s+/g, " ")
+        .replace(/[−–—]/g, "-")
+        .trim();
+    }
+
+    function dateTextToISO(dateText) {
+      if (!dateText) return null;
+      const date = new Date(`${dateText} 12:00:00`);
+      if (Number.isNaN(date.getTime())) return null;
+      return date.toISOString().slice(0, 10);
+    }
+
+    function monthFromISO(isoDate) {
+      if (!isoDate) return "";
+      return monthLabel(isoDate);
+    }
+
+    function matchFirst(text, regex, group = 1) {
+      const match = text.match(regex);
+      return match ? match[group] : null;
+    }
+
+    async function extractPdfText(file) {
+      if (!window.pdfjsLib) throw new Error("PDF reader did not load. Refresh the page and try again.");
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      const pages = [];
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+        pages.push(content.items.map(item => item.str).join(" "));
+      }
+
+      return pages.join("\n");
+    }
+
+    function extractFplBillFields(rawText) {
+      const text = normalizePdfText(rawText);
+
+      const period = text.match(/For:\s*([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s+to\s+([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s*\((\d+)\s+days\)/i);
+      const currentBillBlock = text.match(/CURRENT BILL\s*\$?([\d,.]+)\s*TOTAL AMOUNT YOU OWE\s*([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s*NEW CHARGES DUE BY/i);
+      const keepInMind = text.match(/([\d,.]+)\s*kWh were sent to the grid this period\.\s*([\d,.]+)\s*kWh were applied to reduce your bill\.\s*Your kWh reserve increased by\s*([-\d,.]+)\.\s*The kWh in your reserve is\s*([-\d,.]+)/i);
+
+      const billingStart = period ? dateTextToISO(period[1]) : null;
+      const billingEnd = period ? dateTextToISO(period[2]) : null;
+      const dueDateText = currentBillBlock ? currentBillBlock[2] : matchFirst(text, /([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})\s+NEW CHARGES DUE BY/i);
+      const dueDateISO = dateTextToISO(dueDateText);
+
+      const payload = {
+        month: billingEnd ? monthFromISO(billingEnd) : "",
+        billing_start: billingStart,
+        billing_end: billingEnd,
+        billing_days: period ? Number(period[3]) : 0,
+        home_usage_kwh: toNumber(matchFirst(text, /Res kWh used\s+([\d,.]+)/i)),
+        ev_usage_kwh: toNumber(matchFirst(text, /EV kWh used\s+\d+\s+\d+\s+([\d,.]+)/i)),
+        total_usage_kwh: toNumber(matchFirst(text, /kWh used\s+\d+\s+\d+\s+([\d,.]+)/i)),
+        sent_to_grid_kwh: keepInMind ? toNumber(keepInMind[1]) : 0,
+        applied_to_bill_kwh: keepInMind ? toNumber(keepInMind[2]) : 0,
+        reserve_added_kwh: keepInMind ? toNumber(keepInMind[3]) : 0,
+        reserve_balance_kwh: keepInMind ? toNumber(keepInMind[4]) : 0,
+        base_service_fee: toNumber(matchFirst(text, /Base charge:\s*\$?([\d,.]+)/i)),
+        electric_service_amount: toNumber(matchFirst(text, /Electric service amount\s+\$?([\d,.]+)/i)),
+        evolution_home_charge: toNumber(matchFirst(text, /FPL EVolution Home charge\s+\$?([\d,.]+)/i)),
+        gross_receipts_tax: toNumber(matchFirst(text, /Gross receipts tax[^\d$]*\$?([\d,.]+)/i)),
+        regulatory_fee: toNumber(matchFirst(text, /Regulatory fee[^\d$]*\$?([\d,.]+)/i)),
+        total_new_charges: toNumber(matchFirst(text, /Total new charges\s+\$?([\d,.]+)/i)),
+        total_bill: currentBillBlock ? toNumber(currentBillBlock[1]) : toNumber(matchFirst(text, /Total amount you owe\s+\$?([\d,.]+)/i)),
+        current_bill: currentBillBlock ? toNumber(currentBillBlock[1]) : toNumber(matchFirst(text, /Total amount you owe\s+\$?([\d,.]+)/i)),
+        due_date: dueDateText || null,
+        due_date_iso: dueDateISO
+      };
+
+      if (!payload.month || !payload.billing_end) {
+        throw new Error("Could not find the billing period. Make sure this is an FPL electric bill PDF.");
+      }
+      if (!payload.current_bill) {
+        throw new Error("Could not find the current bill amount.");
+      }
+
+      return payload;
+    }
+
+    function fillFplBillForm(payload) {
+      const setValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value ?? "";
+      };
+
+      setValue("billMonthInput", payload.month);
+      setValue("billStartInput", payload.billing_start);
+      setValue("billEndInput", payload.billing_end);
+      setValue("billDueInput", payload.due_date_iso);
+      setValue("totalUsageInput", payload.total_usage_kwh);
+      setValue("homeUsageInput", payload.home_usage_kwh);
+      setValue("evUsageInput", payload.ev_usage_kwh);
+      setValue("sentGridInput", payload.sent_to_grid_kwh);
+      setValue("appliedBillInput", payload.applied_to_bill_kwh);
+      setValue("reserveAddedInput", payload.reserve_added_kwh);
+      setValue("reserveBalanceInput", payload.reserve_balance_kwh);
+      setValue("baseChargeInput", payload.base_service_fee);
+      setValue("electricServiceInput", payload.electric_service_amount);
+      setValue("evolutionChargeInput", payload.evolution_home_charge);
+      setValue("grossTaxInput", payload.gross_receipts_tax);
+      setValue("regFeeInput", payload.regulatory_fee);
+      setValue("newChargesInput", payload.total_new_charges);
+      setValue("currentBillInput", payload.current_bill);
+    }
+
+    async function saveExtractedFplBill(payload) {
+      const cleanPayload = { ...payload };
+      delete cleanPayload.due_date_iso;
+
+      const { data: existing, error: findError } = await client
+        .from("fpl_bills")
+        .select("id")
+        .eq("billing_end", cleanPayload.billing_end)
+        .limit(1);
+
+      if (findError) throw findError;
+
+      if (existing && existing.length) {
+        const { error } = await client.from("fpl_bills").update(cleanPayload).eq("id", existing[0].id);
+        if (error) throw error;
+        return "updated";
+      }
+
+      const { error } = await client.from("fpl_bills").insert(cleanPayload);
+      if (error) throw error;
+      return "saved";
+    }
+
+    async function uploadFplBill() {
+      const input = document.getElementById("fplFileInput");
+      const status = document.getElementById("uploadStatus");
+      const detailsStatus = document.getElementById("billDetailsStatus");
+
+      if (!input.files || !input.files.length) {
+        status.textContent = "No PDF selected yet.";
+        return;
+      }
+
+      if (SUPABASE_URL.includes("PASTE_YOUR") || SUPABASE_ANON_KEY.includes("PASTE_YOUR")) {
+        status.textContent = "Supabase URL/key are still placeholders. Add your real values before uploading a bill.";
+        input.value = "";
+        return;
+      }
+
+      const file = input.files[0];
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf) {
+        status.textContent = "Please select a PDF file.";
+        input.value = "";
+        return;
+      }
+
+      try {
+        status.textContent = `Uploading ${file.name}...`;
+        detailsStatus.textContent = "Reading PDF text...";
+
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const monthFolder = new Date().toISOString().slice(0, 7);
+        const path = `${monthFolder}/${Date.now()}-${safeName}`;
+
+        const { error: uploadError } = await client.storage.from("fpl-bills").upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: "application/pdf"
+        });
+
+        if (uploadError) throw uploadError;
+
+        status.textContent = `Uploaded: ${file.name}. Extracting bill details...`;
+
+        const rawText = await extractPdfText(file);
+        const extracted = extractFplBillFields(rawText);
+        fillFplBillForm(extracted);
+
+        const { data: uploadRow, error: logError } = await client
+          .from("fpl_bill_uploads")
+          .insert({ file_name: file.name, file_path: path, billing_month: extracted.month, status: "extracted" })
+          .select("id")
+          .single();
+
+        if (logError) {
+          console.warn("PDF uploaded and parsed, but upload log was not saved:", logError);
+        }
+
+        const saveMode = await saveExtractedFplBill(extracted);
+
+        status.textContent = `Uploaded and extracted: ${file.name}.`;
+        detailsStatus.textContent = `${extracted.month} bill ${saveMode}. Dashboard refreshed.`;
+        input.value = "";
+        await loadSolarHub();
+      } catch (error) {
+        console.error(error);
+        status.textContent = `Upload/extraction failed: ${error.message || "Unknown error"}`;
+        detailsStatus.textContent = "PDF was not saved to FPL bill data. Check the console if this keeps happening.";
+        input.value = "";
+      }
+    }
+
+    function fieldNumber(id) {
+      const value = document.getElementById(id)?.value;
+      return value === "" || value == null ? 0 : Number(value);
+    }
+
+    function displayDueDateFromInput(value) {
+      if (!value) return null;
+      const [year, month, day] = value.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    }
+
+    function clearFplBillForm() {
+      [
+        "billMonthInput", "billStartInput", "billEndInput", "billDueInput", "totalUsageInput",
+        "homeUsageInput", "evUsageInput", "sentGridInput", "appliedBillInput", "reserveAddedInput",
+        "reserveBalanceInput", "baseChargeInput", "electricServiceInput", "evolutionChargeInput",
+        "grossTaxInput", "regFeeInput", "newChargesInput", "currentBillInput"
+      ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+    }
+
+    async function saveFplBillDetails() {
+      const status = document.getElementById("billDetailsStatus");
+      const month = document.getElementById("billMonthInput").value.trim();
+      const billingStart = document.getElementById("billStartInput").value;
+      const billingEnd = document.getElementById("billEndInput").value;
+      const dueDateInput = document.getElementById("billDueInput").value;
+      const currentBill = fieldNumber("currentBillInput");
+
+      if (!month) {
+        status.textContent = "Enter the billing month, like May 2026.";
+        return;
+      }
+
+      if (!billingEnd) {
+        status.textContent = "Enter the billing end date so the dashboard can sort bills correctly.";
+        return;
+      }
+
+      if (!Number.isFinite(currentBill) || currentBill < 0) {
+        status.textContent = "Enter a valid current bill amount.";
+        return;
+      }
+
+      let billingDays = 0;
+      if (billingStart && billingEnd) {
+        const startDate = new Date(`${billingStart}T00:00:00`);
+        const endDate = new Date(`${billingEnd}T00:00:00`);
+        billingDays = Math.max(0, Math.round((endDate - startDate) / 86400000));
+      }
+
+      const payload = {
+        month,
+        billing_start: billingStart || null,
+        billing_end: billingEnd || null,
+        billing_days: billingDays,
+        home_usage_kwh: fieldNumber("homeUsageInput"),
+        ev_usage_kwh: fieldNumber("evUsageInput"),
+        total_usage_kwh: fieldNumber("totalUsageInput"),
+        sent_to_grid_kwh: fieldNumber("sentGridInput"),
+        applied_to_bill_kwh: fieldNumber("appliedBillInput"),
+        reserve_added_kwh: fieldNumber("reserveAddedInput"),
+        reserve_balance_kwh: fieldNumber("reserveBalanceInput"),
+        base_service_fee: fieldNumber("baseChargeInput"),
+        electric_service_amount: fieldNumber("electricServiceInput"),
+        evolution_home_charge: fieldNumber("evolutionChargeInput"),
+        gross_receipts_tax: fieldNumber("grossTaxInput"),
+        regulatory_fee: fieldNumber("regFeeInput"),
+        total_new_charges: fieldNumber("newChargesInput"),
+        total_bill: currentBill,
+        current_bill: currentBill,
+        due_date: displayDueDateFromInput(dueDateInput) || dueDateInput || null
+      };
+
+      status.textContent = "Saving FPL bill details...";
+
+      try {
+        const saveMode = await saveExtractedFplBill(payload);
+        status.textContent = `${month} bill ${saveMode}.`;
+      } catch (error) {
+        console.error(error);
+        status.textContent = `Save failed: ${error.message}`;
+        return;
+      }
+      clearFplBillForm();
+      await loadSolarHub();
+    }
+
+    async function saveDailyEntry() {
+      const status = document.getElementById("dailyStatus");
+      const productionDate = document.getElementById("dailyDate").value;
+      const kwh = Number(document.getElementById("dailyKwh").value);
+      const notes = document.getElementById("dailyNotes").value.trim();
+
+      if (!productionDate) {
+        status.textContent = "Choose a date first.";
+        return;
+      }
+
+      if (!Number.isFinite(kwh) || kwh < 0) {
+        status.textContent = "Enter a valid solar generated kWh value.";
+        return;
+      }
+
+      status.textContent = "Saving daily entry...";
+
+      const { error } = await client.from("solar_daily").upsert({
+        production_date: productionDate,
+        solar_generated_kwh: kwh,
+        source: "Terra Energy manual entry",
+        notes
+      }, { onConflict: "production_date" });
+
+      if (error) {
+        status.textContent = `Save failed: ${error.message}`;
+        return;
+      }
+
+      status.textContent = `Saved ${number(kwh)} kWh for ${productionDate}.`;
+      document.getElementById("dailyKwh").value = "";
+      document.getElementById("dailyNotes").value = "";
+      await loadSolarHub();
+    }
+
+    async function loadSolarHub() {
+      clearError();
+      try {
+        const start = firstDayOfCurrentMonth();
+        const today = todayISO();
+
+        const [monthlyRes, billsRes, systemRes, dailyMonthRes, dailyAllRes, uploadsRes] = await Promise.all([
+          client.from("solar_monthly").select("*").order("created_at", { ascending: false }),
+          client.from("fpl_bills").select("*").order("billing_end", { ascending: false }).order("created_at", { ascending: false }),
+          client.from("solar_system").select("*").order("id", { ascending: false }).limit(1),
+          client.from("solar_daily").select("*").gte("production_date", start).lte("production_date", today).order("production_date", { ascending: false }),
+          client.from("solar_daily").select("*").order("production_date", { ascending: false }),
+          client.from("fpl_bill_uploads").select("*").order("uploaded_at", { ascending: false })
+        ]);
+
+        if (monthlyRes.error) throw monthlyRes.error;
+        if (billsRes.error) throw billsRes.error;
+        if (systemRes.error) throw systemRes.error;
+        if (dailyMonthRes.error) throw dailyMonthRes.error;
+        if (dailyAllRes.error) throw dailyAllRes.error;
+        if (uploadsRes.error) throw uploadsRes.error;
+
+        const monthly = monthlyRes.data || [];
+        const bills = billsRes.data || [];
+        const selectedKey = document.getElementById("dashboardMonthSelector")?.value || "";
+        let bill = null;
+        if (selectedKey) {
+          bill = (bills || []).find(row => monthKeyFromBill(row) === selectedKey) || null;
+        }
+        bill = bill || bills[0] || null;
+        const sys = (systemRes.data || [])[0] || {};
+        const dailyMonth = dailyMonthRes.data || [];
+        const dailyAll = dailyAllRes.data || [];
+        const uploads = uploadsRes.data || [];
+        dailyAllCache = dailyAll;
+
+        const latestMonthly = monthly[0] || {};
+        const displayMonth = bill ? monthNameFromBill(bill) : monthLabel(today);
+        const displayMonthKey = bill ? monthKeyFromBill(bill) : (selectedKey || monthValueFromDate(today));
+        const dashboardMonthSelector = document.getElementById("dashboardMonthSelector");
+        if (dashboardMonthSelector && !dashboardMonthSelector.value) dashboardMonthSelector.value = displayMonthKey;
+
+        const selectedDaily = dailyAll.filter(row => monthValueFromDate(row.production_date) === displayMonthKey);
+        const mtd = selectedDaily.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0);
+        const todayRow = dailyAll.find(row => row.production_date === today);
+        const todayProduction = Number(todayRow?.solar_generated_kwh || 0);
+        const avg = selectedDaily.length ? mtd / selectedDaily.length : 0;
+        const best = selectedDaily.reduce((max, row) => Math.max(max, Number(row.solar_generated_kwh || 0)), 0);
+        const latestDaily = dailyAll[0];
+
+        const displaySolar = mtd || Number(latestMonthly.solar_generated_kwh || 0);
+        const totalUsage = Number(bill?.total_usage_kwh ?? latestMonthly.home_usage_kwh ?? 0);
+        const reserveBalance = Number(bill?.reserve_balance_kwh ?? latestMonthly.net_meter_bank_kwh ?? 0);
+        const currentBill = Number(bill?.current_bill ?? bill?.total_bill ?? 0);
+        const sentToGrid = Number(bill?.sent_to_grid_kwh ?? latestMonthly.sent_to_fpl_kwh ?? 0);
+        const appliedToBill = Number(bill?.applied_to_bill_kwh ?? 0);
+        const reserveAdded = Number(bill?.reserve_added_kwh ?? 0);
+        const estimatedSavings = appliedToBill * 0.125;
+
+        setText("selectedMonth", displayMonth);
+        setText("solarGenerated", intNumber(displaySolar));
+        setText("homeUsage", intNumber(totalUsage));
+        setText("netMeterBank", intNumber(reserveBalance));
+        setText("bankValue", money(reserveBalance * 0.125));
+        setText("currentBill", money(currentBill));
+        setText("dueDate", bill?.due_date || "--");
+        setText("solarSavings", money(estimatedSavings));
+
+        setText("flowMonth", displayMonth);
+        setText("flowSolar", intNumber(displaySolar));
+        setText("flowHome", intNumber(totalUsage));
+        setText("flowSent", intNumber(sentToGrid));
+        setText("flowApplied", intNumber(appliedToBill));
+        setText("flowReserveAdded", `${reserveAdded >= 0 ? "+" : ""}${intNumber(reserveAdded)}`);
+        setText("flowReserveBalance", intNumber(reserveBalance));
+
+        setText("billMonth", displayMonth);
+        setText("baseFee", money(bill?.base_service_fee));
+        setText("electricService", money(bill?.electric_service_amount));
+        setText("evolutionCharge", money(bill?.evolution_home_charge));
+        setText("grossTax", money(bill?.gross_receipts_tax));
+        setText("regFee", money(bill?.regulatory_fee));
+        setText("newCharges", money(bill?.total_new_charges));
+        setText("billTotal", money(currentBill));
+        const billingPeriodText = bill?.billing_start && bill?.billing_end ? `${bill.billing_start} to ${bill.billing_end}` : "--";
+        setText("billingPeriod", billingPeriodText);
+        setText("statusBillingPeriod", billingPeriodText);
+        setText("statusLastSync", new Date().toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }));
+        updateDashboardValidation(displayMonth, displayMonthKey, selectedDaily, bill, uploads);
+
+        setText("todayProduction", number(todayProduction));
+        setText("mtdProduction", number(mtd));
+        setText("avgProduction", number(avg));
+        setText("bestProduction", number(best));
+        setText("manageMtd", number(mtd));
+        setText("entryCount", selectedDaily.length);
+        setText("latestEntryDate", latestDaily?.production_date || "--");
+
+        const lifetimeGenerated = dailyAll.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0) || monthly.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0);
+        const lifetimeSent = bills.reduce((sum, row) => sum + Number(row.sent_to_grid_kwh || 0), 0) || monthly.reduce((sum, row) => sum + Number(row.sent_to_fpl_kwh || 0), 0);
+        const lifetimeApplied = bills.reduce((sum, row) => sum + Number(row.applied_to_bill_kwh || 0), 0);
+
+        setText("lifeGenerated", intNumber(lifetimeGenerated));
+        setText("lifeSent", intNumber(lifetimeSent));
+        setText("lifeApplied", intNumber(lifetimeApplied));
+        setText("inService", sys.in_service_since || "--");
+
+        renderMonthlyTable(monthly, bills, displaySolar, bill);
+        renderEnergyChart(buildChartRows(monthly, bills, displaySolar, bill));
+        renderDailySolarLog(dailyAll);
+      } catch (error) {
+        console.error(error);
+        showError("Solar Hub could not load Supabase data. Check table names, RLS policies, and your Supabase URL/key. Technology remains deeply committed to making one missing permission feel like a mystery novel.");
+      }
+    }
+
+
+    function monthKeyFromLabel(label) {
+      if (!label) return monthValueFromDate(todayISO());
+      const parsed = new Date(`1 ${label} 12:00:00`);
+      if (!Number.isNaN(parsed.getTime())) {
+        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+      }
+      return monthValueFromDate(todayISO());
+    }
+
+    function monthKeyFromBill(bill) {
+      if (bill?.billing_end) return monthValueFromDate(bill.billing_end);
+      if (bill?.month) return monthKeyFromLabel(bill.month);
+      return monthValueFromDate(todayISO());
+    }
+
+    function expectedDaysForMonthKey(monthKey) {
+      const [year, month] = String(monthKey || monthValueFromDate(todayISO())).split("-").map(Number);
+      if (!year || !month) return 0;
+      const todayKey = monthValueFromDate(todayISO());
+      if (monthKey === todayKey) return Number(todayISO().slice(8, 10));
+      return daysInMonth(year, month - 1);
+    }
+
+    function updateDashboardValidation(displayMonth, monthKey, selectedDaily, bill, uploads) {
+      const expected = expectedDaysForMonthKey(monthKey);
+      const entered = selectedDaily.length;
+      const missing = Math.max(0, expected - entered);
+      const uploadedForMonth = Boolean(bill) || (uploads || []).some(upload => {
+        const uploadMonth = upload.billing_month ? monthKeyFromLabel(upload.billing_month) : "";
+        const fileName = String(upload.file_name || "").toLowerCase();
+        return uploadMonth === monthKey || fileName.includes(String(displayMonth || "").slice(0,3).toLowerCase());
+      });
+
+      setText("statusTerraProgress", `${entered}/${expected} days${missing ? `, ${missing} missing` : " complete"}`);
+
+      const missingEl = document.getElementById("validationMissing");
+      const billEl = document.getElementById("validationBill");
+      const terraEl = document.getElementById("validationTerra");
+
+      if (missingEl) {
+        missingEl.textContent = missing ? `${missing} Terra days missing for ${displayMonth}` : `${displayMonth} Terra days complete ✓`;
+        missingEl.className = `status-badge ${missing ? (missing <= 2 ? "status-low" : "status-missing") : "status-good"}`;
+      }
+      if (billEl) {
+        billEl.textContent = uploadedForMonth ? `${displayMonth} FPL bill uploaded ✓` : `${displayMonth} FPL bill missing`;
+        billEl.className = `status-badge ${uploadedForMonth ? "status-good" : "status-missing"}`;
+      }
+      if (terraEl) {
+        terraEl.textContent = missing ? `${displayMonth} Terra data incomplete` : `${displayMonth} Terra data complete ✓`;
+        terraEl.className = `status-badge ${missing ? "status-low" : "status-good"}`;
+      }
+    }
+
+    function filterDailyLogToMonth(monthKey) {
+      const input = document.getElementById("dailyLogMonth");
+      if (input) input.value = monthKey;
+      renderDailySolarLog(dailyAllCache);
+      document.getElementById("dailyLogRows")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function buildChartRows(monthly, bills, currentSolar, currentBill) {
+      const rows = [];
+      const billRows = (bills || []).slice(0, 12).reverse();
+
+      if (billRows.length) {
+        billRows.forEach((bill, index) => {
+          const label = monthNameFromBill(bill);
+          const matchingMonthly = (monthly || []).find(row => row.month === bill.month || row.month === label);
+          const monthKey = monthKeyFromBill(bill);
+          const dailySolar = dailyAllCache
+            .filter(row => monthValueFromDate(row.production_date) === monthKey)
+            .reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0);
+          rows.push({
+            month: label,
+            solar: dailySolar || Number(matchingMonthly?.solar_generated_kwh || 0),
+            usage: Number(bill.total_usage_kwh || matchingMonthly?.home_usage_kwh || 0),
+            sent: Number(bill.sent_to_grid_kwh || matchingMonthly?.sent_to_fpl_kwh || 0)
+          });
+        });
+      } else {
+        (monthly || []).slice(0, 12).reverse().forEach(row => {
+          rows.push({
+            month: row.month,
+            solar: Number(row.solar_generated_kwh || 0),
+            usage: Number(row.home_usage_kwh || 0),
+            sent: Number(row.sent_to_fpl_kwh || 0)
+          });
+        });
+      }
+
+      return rows;
+    }
+
+    function renderMonthlyTable(monthly, bills, currentSolar, currentBill) {
+      const tbody = document.getElementById("monthlyRows");
+      const rows = [];
+      const seen = new Set();
+
+      (bills || []).slice(0, 8).forEach((bill) => {
+        const label = monthNameFromBill(bill);
+        const key = monthKeyFromBill(bill);
+        const matchingMonthly = (monthly || []).find(row => row.month === bill.month || row.month === label);
+        const dailyForMonth = dailyAllCache.filter(row => monthValueFromDate(row.production_date) === key);
+        const solarTotal = dailyForMonth.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0) || Number(matchingMonthly?.solar_generated_kwh || 0);
+        const expected = expectedDaysForMonthKey(key);
+        const entered = dailyForMonth.length;
+
+        rows.push({
+          month: label,
+          monthKey: key,
+          terraDays: `${entered}/${expected}`,
+          terraStatus: entered >= expected ? "status-good" : entered >= Math.max(0, expected - 2) ? "status-low" : "status-missing",
+          solar: solarTotal,
+          usage: Number(bill.total_usage_kwh || matchingMonthly?.home_usage_kwh || 0),
+          sent: Number(bill.sent_to_grid_kwh || matchingMonthly?.sent_to_fpl_kwh || 0),
+          applied: Number(bill.applied_to_bill_kwh || 0),
+          reserve: Number(bill.reserve_balance_kwh || matchingMonthly?.net_meter_bank_kwh || 0),
+          bill: Number(bill.current_bill ?? bill.total_bill ?? 0)
+        });
+        seen.add(key);
+      });
+
+      if (!rows.length) {
+        (monthly || []).slice(0, 8).forEach(row => {
+          const key = monthKeyFromLabel(row.month);
+          const dailyForMonth = dailyAllCache.filter(item => monthValueFromDate(item.production_date) === key);
+          const expected = expectedDaysForMonthKey(key);
+          rows.push({
+            month: row.month,
+            monthKey: key,
+            terraDays: `${dailyForMonth.length}/${expected}`,
+            terraStatus: dailyForMonth.length >= expected ? "status-good" : "status-missing",
+            solar: dailyForMonth.reduce((sum, item) => sum + Number(item.solar_generated_kwh || 0), 0) || Number(row.solar_generated_kwh || 0),
+            usage: Number(row.home_usage_kwh || 0),
+            sent: Number(row.sent_to_fpl_kwh || 0),
+            applied: 0,
+            reserve: Number(row.net_meter_bank_kwh || 0),
+            bill: 0
+          });
+        });
+      }
+
+      tbody.innerHTML = rows.map(row => `
+        <tr class="month-row" data-month-key="${row.monthKey}">
+          <td><strong>${row.month}</strong></td>
+          <td class="right"><span class="status-badge ${row.terraStatus}">${row.terraDays}</span></td>
+          <td class="right">${intNumber(row.solar)}</td>
+          <td class="right">${intNumber(row.usage)}</td>
+          <td class="right">${intNumber(row.sent)}</td>
+          <td class="right">${intNumber(row.applied)}</td>
+          <td class="right">${intNumber(row.reserve)}</td>
+          <td class="right">$${money(row.bill)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="8">No monthly data yet.</td></tr>`;
+
+      tbody.querySelectorAll("[data-month-key]").forEach(row => {
+        row.addEventListener("click", () => filterDailyLogToMonth(row.dataset.monthKey));
+      });
+    }
+
+    function renderEnergyChart(rows) {
+      const svg = document.getElementById("energyChart");
+      const width = 820;
+      const height = 420;
+      const pad = { top: 34, right: 28, bottom: 58, left: 76 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+
+      if (!rows.length) {
+        svg.innerHTML = `<text x="410" y="210" text-anchor="middle" font-size="22" font-weight="750" fill="#7e7168">No chart data yet.</text>`;
+        return;
+      }
+
+      const maxData = Math.max(...rows.flatMap(row => [row.solar, row.usage, row.sent || 0]), 1000);
+      const maxY = Math.ceil(maxData / 500) * 500;
+      const minY = 0;
+      const y = value => pad.top + ((maxY - value) / (maxY - minY || 1)) * plotH;
+      const barGroup = plotW / Math.max(rows.length, 1);
+      const barW = Math.min(34, barGroup * .16);
+      let html = "";
+
+      for (let tick = minY; tick <= maxY; tick += 500) {
+        const yy = y(tick);
+        html += `<line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" stroke="rgba(90,62,39,.16)" stroke-width="1.2" />`;
+        html += `<text x="18" y="${yy + 6}" font-size="17" font-weight="650" fill="#241815">${tick.toLocaleString()}</text>`;
+      }
+
+      html += `<text x="18" y="24" font-size="16" font-weight="800" fill="#241815">kWh</text>`;
+
+      const points = rows.map((row, i) => {
+        const x = pad.left + i * barGroup + barGroup / 2;
+        return `${x},${y(Number(row.sent || 0))}`;
+      }).join(" ");
+
+      rows.forEach((row, i) => {
+        const center = pad.left + i * barGroup + barGroup / 2;
+        const solar = Number(row.solar || 0);
+        const usage = Number(row.usage || 0);
+        const sent = Number(row.sent || 0);
+
+        html += `<rect x="${center - barW - 5}" y="${y(solar)}" width="${barW}" height="${Math.max(0, y(0) - y(solar))}" rx="6" fill="#6b4325" />`;
+        html += `<rect x="${center + 5}" y="${y(usage)}" width="${barW}" height="${Math.max(0, y(0) - y(usage))}" rx="6" fill="#e4bd8d" />`;
+
+        if (sent > 0) {
+          html += `<circle cx="${center}" cy="${y(sent)}" r="5" fill="#42680f" />`;
+        }
+
+        const label = String(row.month || "").replace(" 20", " '").slice(0, 7);
+        html += `<text x="${center}" y="${height - 18}" font-size="16" font-weight="750" text-anchor="middle" fill="#241815">${label}</text>`;
+      });
+
+      html += `<polyline points="${points}" fill="none" stroke="#42680f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />`;
+      html += `<line x1="${pad.left}" y1="${y(0)}" x2="${width - pad.right}" y2="${y(0)}" stroke="rgba(90,62,39,.28)" stroke-width="1.4" />`;
+      svg.innerHTML = html;
+    }
+
+
+
+    function monthValueFromDate(dateString) {
+      return String(dateString || todayISO()).slice(0, 7);
+    }
+
+    function daysInMonth(year, monthIndexZero) {
+      return new Date(year, monthIndexZero + 1, 0).getDate();
+    }
+
+    function selectedLogMonth() {
+      const input = document.getElementById("dailyLogMonth");
+      return input?.value || monthValueFromDate(todayISO());
+    }
+
+    function renderDailySolarLog(rows = dailyAllCache) {
+      const tbody = document.getElementById("dailyLogRows");
+      if (!tbody) return;
+
+      const monthValue = selectedLogMonth();
+      const [year, month] = monthValue.split("-").map(Number);
+      if (!year || !month) return;
+
+      const today = todayISO();
+      const isCurrentMonth = monthValue === monthValueFromDate(today);
+      const lastDay = isCurrentMonth ? Number(today.slice(8, 10)) : daysInMonth(year, month - 1);
+
+      const entries = (rows || []).filter(row => monthValueFromDate(row.production_date) === monthValue);
+      const entryMap = new Map(entries.map(row => [row.production_date, row]));
+      const total = entries.reduce((sum, row) => sum + Number(row.solar_generated_kwh || 0), 0);
+      const avg = entries.length ? total / entries.length : 0;
+      const missing = Math.max(0, lastDay - entries.length);
+
+      setText("logDaysEntered", entries.length);
+      setText("logDaysMissing", missing);
+      setText("logMonthTotal", number(total));
+      setText("logDailyAvg", number(avg));
+
+      const html = [];
+      for (let day = lastDay; day >= 1; day--) {
+        const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const row = entryMap.get(date);
+
+        if (!row) {
+          html.push(`
+            <tr class="daily-log-missing">
+              <td><strong>${date}</strong></td>
+              <td class="right">--</td>
+              <td>Missing Terra entry</td>
+              <td><span class="status-badge status-missing">Missing Day</span></td>
+              <td class="right"><button class="table-action" type="button" data-add-date="${date}">Add</button></td>
+            </tr>
+          `);
+          continue;
+        }
+
+        const kwh = Number(row.solar_generated_kwh || 0);
+        let statusText = "Looks Good";
+        let statusClass = "status-good";
+
+        if (kwh < 10) {
+          statusText = "Low Production";
+          statusClass = "status-low";
+        } else if (kwh > 70) {
+          statusText = "High Production";
+          statusClass = "status-high";
+        }
+
+        html.push(`
+          <tr>
+            <td><strong>${date}</strong></td>
+            <td class="right">${number(kwh)}</td>
+            <td>${row.notes ? escapeHtml(row.notes) : "--"}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td class="right"><button class="table-action" type="button" data-edit-date="${date}">Edit</button></td>
+          </tr>
+        `);
+      }
+
+      tbody.innerHTML = html.join("");
+      tbody.querySelectorAll("[data-edit-date]").forEach(button => {
+        button.addEventListener("click", () => editDailyLogEntry(button.dataset.editDate));
+      });
+      tbody.querySelectorAll("[data-add-date]").forEach(button => {
+        button.addEventListener("click", () => addDailyLogEntry(button.dataset.addDate));
+      });
+    }
+
+    function addDailyLogEntry(date) {
+      document.getElementById("dailyDate").value = date;
+      document.getElementById("dailyKwh").value = "";
+      document.getElementById("dailyNotes").value = "";
+      document.getElementById("dailyStatus").textContent = `Ready to add Terra entry for ${date}.`;
+      document.getElementById("dailyDate").scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("dailyKwh").focus();
+    }
+
+    function editDailyLogEntry(date) {
+      const row = dailyAllCache.find(item => item.production_date === date);
+      document.getElementById("dailyDate").value = date;
+      document.getElementById("dailyKwh").value = row ? Number(row.solar_generated_kwh || 0) : "";
+      document.getElementById("dailyNotes").value = row?.notes || "";
+      document.getElementById("dailyStatus").textContent = `Editing Terra entry for ${date}. Save Entry will update this day.`;
+      document.getElementById("dailyDate").scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("dailyKwh").focus();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setupNavActiveState() {
+      const links = Array.from(document.querySelectorAll(".nav-btn"));
+      links.forEach(link => {
+        link.addEventListener("click", () => {
+          links.forEach(item => item.classList.remove("active"));
+          link.classList.add("active");
+        });
+      });
+    }
+
+    document.getElementById("dailyDate").value = todayISO();
+    document.getElementById("dailyLogMonth").value = monthValueFromDate(todayISO());
+    document.getElementById("uploadFplBtn").addEventListener("click", prepareFplBillPicker);
+    document.getElementById("uploadFplBtn").addEventListener("keydown", prepareFplBillPicker);
+    document.getElementById("saveFplBillBtn").addEventListener("click", saveFplBillDetails);
+    document.getElementById("fplFileInput").addEventListener("change", uploadFplBill);
+    document.getElementById("saveDailyBtn").addEventListener("click", saveDailyEntry);
+    document.getElementById("dailyLogMonth").addEventListener("change", () => renderDailySolarLog(dailyAllCache));
+    document.getElementById("dashboardMonthSelector")?.addEventListener("change", loadSolarHub);
+    setupNavActiveState();
+    loadSolarHub();
+  </script>
+</body>
+</html>
